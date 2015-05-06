@@ -6,7 +6,8 @@ A python script that produces downloadable material for existing and new recordi
 2. ffmpeg compiled with libx264 support
 
 ## Installation
-Run ```sudo ./install.sh or sudo bash install.sh```
+Run ```chmod u+x install.sh && sudo ./install.sh OR sudo bash install.sh```
+
 This copies the download scripts to the BigBlueButton scripts folder. It also installs python2.7 and builds a static ffmpeg.
 
 ## Usage
