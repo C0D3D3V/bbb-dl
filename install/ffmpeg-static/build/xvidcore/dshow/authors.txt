@@ -1,4 +1,0 @@
-authors
-
-
-Peter Ross <pross@xvid.org>
