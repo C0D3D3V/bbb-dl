@@ -18,3 +18,4 @@ It also installs python2.7 and builds a static ffmpeg with all the necessary com
 After running the installation script (install.sh), the python script that produces the downloadable material, will be called for each recording automatically by the BigBlueButton monitoring scripts, after each recording has been transcoded and published.
 
 ## Outputs
+The script outputs a video with all the slides presented during the web conference, multiplexed with the sound from the speaker's and the parcticipants' microphones. It also serves a second video with the participants video cameras, if they had been used during the conference recording.
