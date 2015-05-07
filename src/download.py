@@ -112,7 +112,6 @@ def rescale_presentation(new_height, new_width, dictionary):
 
 
 def check_presentation_dims(dictionary, dims):
-    print 'dims = ', dims
     names = dims.keys()
     heights = []
     widths = []
@@ -167,7 +166,7 @@ def get_different_presentations(dictionary):
         if t < 1:
             continue
 
-        name = dictionary[t].split("/")[7]  # ******* MUST CHANGE ***** #
+        name = dictionary[t].split("/")[7]
         if name not in presentations:
             presentations.append(name)
             dims[name] = get_presentation_dims(name)

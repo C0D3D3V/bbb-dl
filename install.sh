@@ -11,11 +11,26 @@ function install_ffmpeg {
     rm -rf ffmpeg-static-master
 }
 
+# Check if we are root
+uid=$(id -u)
+if [ $uid -ne 0 ]
+then 
+    echo "Please run as root"
+    exit 1
+fi
+
 # Install python
 apt-get install -y python
 
 # Install ffmpeg
-install_ffmpeg
+exists=$(which ffmpeg);
+if [ -z $exists ] 
+then 
+    install_ffmpeg
+else
+    echo "ffmpeg is already installed"
+fi
+
 
 # Create log directory
 mkdir -p /var/log/bigbluebutton/download
