@@ -26,7 +26,9 @@ apt-get install -y python
 exists=$(which ffmpeg);
 if [ -z $exists ] 
 then 
-    install_ffmpeg
+    #install_ffmpeg
+    echo "Please install ffmpeg and try again"
+    exit 1
 else
     echo "ffmpeg is already installed"
 fi
