@@ -14,6 +14,11 @@ sudo ./install.sh
 This copies the download scripts to the BigBlueButton scripts folder. 
 It also installs python2.7 and builds a static ffmpeg with all the necessary compilation flags enabled.
 
+NOTE: The building of the ffmpeg in install.sh appears to be now broken. You may use the guide [here](https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu) to compile ffmpeg in Ubuntu. Be sure to include the following flags. 
+```
+--enable-version3 --enable-postproc --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libmp3lame --enable-libfdk-aac --enable-gpl --enable-nonfree''
+```
+
 ## Usage
 After running the installation script (install.sh), the python script that produces the downloadable material, will be called for each recording automatically by the BigBlueButton monitoring scripts, after each recording has been transcoded and published.
 
