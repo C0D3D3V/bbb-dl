@@ -23,4 +23,4 @@ NOTE: The building of the ffmpeg in install.sh appears to be now broken. You may
 After running the installation script (install.sh), the python script that produces the downloadable material, will be called for each recording automatically by the BigBlueButton monitoring scripts, after each recording has been transcoded and published.
 
 ## Outputs
-The script serves a video with all the slides presented during the web conference, multiplexed with the sound from the speaker's and the parcticipants' microphones. It also serves a second video with the participants' video cameras, had they been used during the conference recording.
+The script serves a video with all the slides presented during the web conference, multiplexed with the sound from the speaker's and the participants' microphones. It also serves a second video with the participants' video cameras, had they been used during the conference recording. The 2 videos come bundled in a zip file, that is created in the recording folder and is of the format "recording_id.zip". The script only produces the zip file. Serving it to the end user is not provided.
