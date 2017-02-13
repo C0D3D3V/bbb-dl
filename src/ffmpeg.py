@@ -31,7 +31,7 @@ def create_video_from_image(image, duration, out_file):
 
 
 def concat_videos(video_list, out_file):
-    command = '%s -f concat -i %s -c copy %s 2>> %s' % (FFMPEG, video_list, out_file, logfile)
+    command = '%s -f concat -safe 0 -i %s -c copy %s 2>> %s' % (FFMPEG, video_list, out_file, logfile)
     os.system(command)
 
 
