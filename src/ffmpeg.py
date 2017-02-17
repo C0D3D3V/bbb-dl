@@ -25,13 +25,13 @@ def extract_audio_from_video(video_file, out_file):
 
 
 def create_video_from_image(image, duration, out_file):
-    command = '%s -loop 1 -r 5 -f image2 -i %s -c:v %s -t %f -pix_fmt yuv420p %s 2>> %s' % (
+    command = '%s -loop 1 -r 5 -f image2 -i %s -c:v %s -t %f -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" %s 2>> %s' % (
         FFMPEG, image, VID_ENCODER, duration, out_file, logfile)
     os.system(command)
 
 
 def concat_videos(video_list, out_file):
-    command = '%s -f concat -i %s -c copy %s 2>> %s' % (FFMPEG, video_list, out_file, logfile)
+    command = '%s -f concat -safe 0 -i %s -c copy %s 2>> %s' % (FFMPEG, video_list, out_file, logfile)
     os.system(command)
 
 
