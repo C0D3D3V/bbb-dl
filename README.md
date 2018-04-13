@@ -2,7 +2,7 @@
 ### The code is no longer maintained
 
 A python script that produces downloadable material for existing and new recordings in a BigBlueButton 0.9.0 installation.
-BigBueButton > 2.0 is not supported
+BigBueButton >= 2.0 is not supported
 
 ## Requirements
 1. python2.7
