@@ -16,7 +16,7 @@ apt-get install -y curl libsdl2-mixer-2.0-0 libsdl2-image-2.0-0 libsdl2-2.0-0 li
 
 # Copy ffmpeg to /opt/ffmpeg folder
 mkdir -p /opt/ffmpeg
-cp ffmpeg/*.* /opt/ffmpeg
+cp ffmpeg/* /opt/ffmpeg
 chmod 755 /opt/ffmpeg/ffmpeg
 chmod 755 /usr/local/bigbluebutton/core/scripts/post_publish/*
 
