@@ -10,11 +10,12 @@ BigBueButton >= 2.0 is not supported yet.
 3. Installed and configured Big Blue Button server
 
 ## Installation (need to be root)
+```
 git clone https://github.com/createwebinar/bbb-download.git
 cd bbb-download
 chmod u+x install.sh 
 sudo ./install.sh
-
+```
 
 This copies the download scripts to the BigBlueButton scripts folder, and copies compiled FFMPEG to the /opt/ffmpeg folder. 
 It also installs python2.7 and additional libs and give an appropriate rights for MP4 files to make them available for download.
