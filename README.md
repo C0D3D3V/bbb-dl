@@ -6,7 +6,7 @@ BigBueButton >= 2.0 is not supported yet.
 
 ## Requirements
 1. python2.7
-2. ffmpeg compiled with libx264 support
+2. ffmpeg compiled with libx264 support (included)
 
 ## Installation (need to be root)
 ```
@@ -24,8 +24,6 @@ NOTE: You may use the guide [here](https://trac.ffmpeg.org/wiki/CompilationGuide
 
 ## Usage
 After running the installation script (install.sh), the python script that produces the downloadable material, will be called for each recording automatically by the BigBlueButton monitoring scripts, after each recording has been transcoded and published.
-Link to download MP4 file will look like this: https://yourBBBserverURL/download/presentation/{meetingID}/{meetingID}.mp4
-If your BigBlueButton server is connected to Createwebinar.com contol panel, all webinar participants can download the recorded webinars from Schedule menu.
 
 ## Outputs
 Link to download MP4 file will look like this: https://yourBBBserverURL/download/presentation/{meetingID}/{meetingID}.mp4
