@@ -1,5 +1,5 @@
-__author__ = 'palexang'
-__email__ = 'palexang@it.auth.gr'
+__author__ = 'createwebinar.com'
+__email__ = 'support@createwebinar.com'
 
 from xml.dom import minidom
 import sys
@@ -11,7 +11,6 @@ import re
 import time
 
 # Python script that produces downloadable material from a published bbb recording.
-# http://xkcd.com/1513/
 
 # Catch exception so that the script can be also called manually like: python download.py meetingId,
 # in addition to being called from the bbb control scripts.
@@ -56,6 +55,7 @@ def extract_timings():
         occurrences = len(in_times)
         for i in range(occurrences):
             dictionary[float(in_times[i])] = temp_dir + str(path)
+
     return dictionary, total_length
 
 
@@ -67,8 +67,8 @@ def create_slideshow(dictionary, length, result):
     times.sort()
 
     for i, t in enumerate(times):
-        if i < 1:
-            continue
+        #if i < 1:
+        #    continue
 
         tmp_name = '%d.mp4' % i
         image = dictionary[t]
@@ -106,8 +106,8 @@ def rescale_presentation(new_height, new_width, dictionary):
     times = dictionary.keys()
     times.sort()
     for i, t in enumerate(times):
-        if i < 1:
-            continue
+        #if i < 1:
+        #    continue
         ffmpeg.rescale_image(dictionary[t], new_height, new_width, dictionary[t])
 
 
@@ -153,20 +153,33 @@ def prepare():
 
     shutil.copytree("presentation", temp_dir + "presentation")
     dictionary, length = extract_timings()
+    #debug
+    print >> sys.stderr, "dictionary"
+    print >> sys.stderr, (dictionary)
+    print >> sys.stderr, "length"
+    print >> sys.stderr, (length)
     dims = get_different_presentations(dictionary)
+    #debug
+    print >> sys.stderr, "dims"
+    print >> sys.stderr, (dims)
     check_presentation_dims(dictionary, dims)
     return dictionary, length, dims
 
 
 def get_different_presentations(dictionary):
     times = dictionary.keys()
+    print >> sys.stderr, "times"
+    print >> sys.stderr, (times)
     presentations = []
     dims = {}
     for t in times:
-        if t < 1:
-            continue
+        #if t < 1:
+        #    continue
 
         name = dictionary[t].split("/")[7]
+        # debug
+        print >> sys.stderr, "name"
+        print >> sys.stderr, (name)
         if name not in presentations:
             presentations.append(name)
             dims[name] = get_presentation_dims(name)
@@ -186,6 +199,10 @@ def serve_webcams():
     if os.path.exists('video/webcams.webm'):
         shutil.copy2('video/webcams.webm', './download/')
 
+def copy_mp4(result, dest):
+    if os.path.exists(result):
+        shutil.copy2(result, dest)
+
 
 def zipdir(path):
     filename = meetingId + '.zip'
@@ -196,8 +213,8 @@ def zipdir(path):
     zipf.close()
 
     #Create symlink instead so that files are deleted
-    if not os.path.exists('/var/bigbluebutton/playback/presentation/download/' + filename):
-        os.symlink(source_dir + filename, '/var/bigbluebutton/playback/presentation/download/' + filename)
+    #if not os.path.exists('/var/bigbluebutton/playback/presentation/download/' + filename):
+    #    os.symlink(source_dir + filename, '/var/bigbluebutton/playback/presentation/download/' + filename)
 
 
 def main():
@@ -218,6 +235,7 @@ def main():
         ffmpeg.mux_slideshow_audio(slideshow, audio_trimmed, result)
         serve_webcams()
         zipdir('./download/')
+        copy_mp4(result, source_dir + meetingId + '.mp4')
     finally:
         print >> sys.stderr, "Cleaning up temp files..."
         cleanup()

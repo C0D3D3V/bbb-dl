@@ -4,7 +4,7 @@ __author__ = 'palexang'
 import os
 import shutil
 
-FFMPEG = 'ffmpeg'
+FFMPEG = '/opt/ffmpeg/ffmpeg'
 VID_ENCODER = 'libx264'
 
 
@@ -25,7 +25,9 @@ def extract_audio_from_video(video_file, out_file):
 
 
 def create_video_from_image(image, duration, out_file):
-    command = '%s -loop 1 -r 5 -f image2 -i %s -c:v %s -t %f -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" %s 2>> %s' % (
+    print "*************** create_video_from_image ******************"
+    print image, "\n", duration, "\n", out_file
+    command = '%s -loop 1 -r 5 -f image2 -i %s -c:v %s -t %s -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" %s 2>> %s' % (
         FFMPEG, image, VID_ENCODER, duration, out_file, logfile)
     os.system(command)
 
@@ -80,7 +82,7 @@ def trim_audio(audio_file, start, end, out_file):
 def trim_audio_start(dictionary, length, full_audio, audio_trimmed):
     times = dictionary.keys()
     times.sort()
-    trim_audio(full_audio, int(round(times[1])), int(length), audio_trimmed)
+    trim_audio(full_audio, int(round(times[0])), int(length), audio_trimmed)
 
 
 def trim_video_start(dictionary, length, full_vid, video_trimmed):
@@ -95,7 +97,7 @@ def mp3_to_aac(mp3_file, aac_file):
 
 
 def webm_to_mp4(webm_file, mp4_file):
-    command = '%s -i %s -qscale 0 %s 2>> %s' % (FFMPEG, webm_file, mp4_file, logfile) 
+    command = '%s -i %s -qscale 0 %s 2>> %s' % (FFMPEG, webm_file, mp4_file, logfile)
     os.system(command)
 
 

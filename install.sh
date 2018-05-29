@@ -1,16 +1,5 @@
 #!/bin/bash
 
-function install_ffmpeg {
-    wget https://github.com/stvs/ffmpeg-static/archive/master.zip
-    unzip master.zip
-    rm master.zip
-    cd ffmpeg-static-master
-    ./build-ubuntu.sh
-    cp ./target/bin/* /usr/bin 
-    cd ../
-    rm -rf ffmpeg-static-master
-}
-
 # Check if we are root
 uid=$(id -u)
 if [ $uid -ne 0 ]
@@ -22,21 +11,24 @@ fi
 # Install python
 apt-get install -y python
 
-# Install ffmpeg
-exists=$(which ffmpeg);
-if [ -z $exists ] 
-then 
-    #install_ffmpeg
-    echo "Please install ffmpeg and try again"
-    exit 1
-else
-    echo "ffmpeg is already installed"
-fi
+# Install additional libs need to convertation process
+apt-get install -y curl libsdl2-mixer-2.0-0 libsdl2-image-2.0-0 libsdl2-2.0-0 libva-x11-1 libva-drm1 libfdk-aac-dev
 
+# Copy ffmpeg to /opt/ffmpeg folder
+mkdir -p /opt/ffmpeg
+cp ffmpeg/*.* /opt/ffmpeg
+chmod 755 /opt/ffmpeg/ffmpeg
+chmod 755 /usr/local/bigbluebutton/core/scripts/post_publish/*
+
+#Set up NGINX to make MP4 files available for createwebinar.com
+mkdir /var/www/bigbluebutton-default/download
+ln -s /var/bigbluebutton/published/presentation /var/www/bigbluebutton-default/download
+chmod 0755 /var/bigbluebutton/published/presentation
 
 # Create log directory
 mkdir -p /var/log/bigbluebutton/download
 chown tomcat7:tomcat7 /var/log/bigbluebutton/download
+chmod -R go+rw /var/log/bigbluebutton/download/
 
 # Copy python scripts to post_publish directory
 cp src/*.py /usr/local/bigbluebutton/core/scripts/post_publish

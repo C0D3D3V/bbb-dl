@@ -1,29 +1,32 @@
 # bbb-download
-### The code is no longer maintained
+### The code will be maintained by createwebinar.com developer team
 
-A python script that produces downloadable material for existing and new recordings in a BigBlueButton 0.9.0 installation.
-BigBueButton >= 2.0 is not supported
+A python script that produces downloadable material for existing and new recordings in a BigBlueButton 1.1 installation.
+BigBueButton >= 2.0 is not supported yet. 
 
 ## Requirements
 1. python2.7
 2. ffmpeg compiled with libx264 support
 
-## Installation
+## Installation (need to be root)
 ```
 chmod u+x install.sh 
 sudo ./install.sh
 ```
 
-This copies the download scripts to the BigBlueButton scripts folder. 
-It also installs python2.7 and builds a static ffmpeg with all the necessary compilation flags enabled.
+This copies the download scripts to the BigBlueButton scripts folder, and copies compiled FFMPEG to the /opt/ffmpeg folder. 
+It also installs python2.7 and additional libs and give an appropriate rights for MP4 files to make them available for download.
 
-NOTE: The building of the ffmpeg in install.sh appears to be now broken. You may use the guide [here](https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu) to compile ffmpeg in Ubuntu. Be sure to include the following flags. 
+NOTE: You may use the guide [here](https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu) to compile ffmpeg in Ubuntu by your own. Be sure to include the following flags. 
 ```
 --enable-version3 --enable-postproc --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libmp3lame --enable-libfdk-aac --enable-gpl --enable-nonfree''
 ```
 
 ## Usage
 After running the installation script (install.sh), the python script that produces the downloadable material, will be called for each recording automatically by the BigBlueButton monitoring scripts, after each recording has been transcoded and published.
+Link to download MP4 file will look like this: https://yourBBBserverURL/download/presentation/{meetingID}/{meetingID}.mp4
+If your BigBlueButton server is connected to Createwebinar.com contol panel, all webinar participants can download the recorded webinars from Schedule menu.
 
 ## Outputs
-The script serves a video with all the slides presented during the web conference, multiplexed with the sound from the speaker's and the participants' microphones. It also serves a second video with the participants' video cameras, had they been used during the conference recording. The 2 videos come bundled in a zip file, that is created in the recording folder and is of the format "recording_id.zip". The script only produces the zip file. Serving it to the end user is not provided.
+Link to download MP4 file will look like this: https://yourBBBserverURL/download/presentation/{meetingID}/{meetingID}.mp4
+If your BigBlueButton server is connected to Createwebinar.com Advanced contol panel, all webinar participants can download the recorded webinars from Schedule menu.
