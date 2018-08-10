@@ -1,13 +1,13 @@
 # bbb-download
 ### The code will be maintained by createwebinar.com developer team
 
-A python script that produces downloadable material for existing and new recordings in a BigBlueButton 1.1 installation.
-BigBueButton >= 2.0 is not supported yet. 
+A python script that produces downloadable material for existing and new recordings in a BigBlueButton installation.
+BigBueButton 2.0 is supported since 10.08.2018. 
 
 ## Requirements
 1. python2.7
 2. ffmpeg compiled with libx264 support (included)
-3. Installed and configured Big Blue Button server
+3. Installed and configured Big Blue Button server (1.1 or 2.0)
 
 ## Installation (need to be root)
 ```
@@ -15,7 +15,10 @@ git clone https://github.com/createwebinar/bbb-download.git
 cd bbb-download
 chmod u+x install.sh 
 sudo ./install.sh
+# To convert all of your current recordings to MP4 format use command:
+sudo bbb-record --rebuildall
 ```
+
 
 This copies the download scripts to the BigBlueButton scripts folder, and copies compiled FFMPEG to the /opt/ffmpeg folder. 
 It also installs python2.7 and additional libs and give an appropriate rights for MP4 files to make them available for download.
