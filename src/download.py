@@ -1,5 +1,5 @@
-__author__ = 'createwebinar.com'
-__email__ = 'support@createwebinar.com'
+__author__ = 'palexang'
+__email__ = 'palexang@it.auth.gr'
 
 from xml.dom import minidom
 import sys
@@ -11,6 +11,7 @@ import re
 import time
 
 # Python script that produces downloadable material from a published bbb recording.
+# http://xkcd.com/1513/
 
 # Catch exception so that the script can be also called manually like: python download.py meetingId,
 # in addition to being called from the bbb control scripts.
@@ -32,8 +33,9 @@ audio_path = 'audio/'
 events_file = 'shapes.svg'
 LOGFILE = LOGS + meetingId + '.log'
 ffmpeg.set_logfile(LOGFILE)
+source_events = '/var/bigbluebutton/recording/raw/' + meetingId + '/events.xml'
 
-def extract_timings():
+def extract_timings(bbb_version):
     doc = minidom.parse(events_file)
     dictionary = {}
     total_length = 0
@@ -41,7 +43,7 @@ def extract_timings():
 
     for image in doc.getElementsByTagName('image'):
         path = image.getAttribute('xlink:href')
-        if j == 0:
+        if j == 0 and '2.0.0' > bbb_version:
             path = u'/usr/local/bigbluebutton/core/scripts/logo.png'
             j += 1
 
@@ -59,7 +61,7 @@ def extract_timings():
     return dictionary, total_length
 
 
-def create_slideshow(dictionary, length, result):
+def create_slideshow(dictionary, length, result, bbb_version):
     video_list = 'video_list.txt'
     f = open(video_list, 'w')
 
@@ -67,8 +69,15 @@ def create_slideshow(dictionary, length, result):
     times.sort()
 
     for i, t in enumerate(times):
-        #if i < 1:
-        #    continue
+        print >> sys.stderr, "_create_slideshow_"
+        print >> sys.stderr, (i, t)
+
+        #if i < 1 and '2.0.0' > bbbversion:
+        #   continue
+
+
+        print >> sys.stderr, "_create_slideshow_after_skip_"
+        print >> sys.stderr, (i, t)
 
         tmp_name = '%d.mp4' % i
         image = dictionary[t]
@@ -102,19 +111,28 @@ def get_presentation_dims(presentation_name):
             return height, width
 
 
-def rescale_presentation(new_height, new_width, dictionary):
+def rescale_presentation(new_height, new_width, dictionary, bbb_version):
     times = dictionary.keys()
     times.sort()
     for i, t in enumerate(times):
-        #if i < 1:
-        #    continue
+#?
+        print >> sys.stderr, "_rescale_presentation_"
+        print >> sys.stderr, (i, t)
+
+        if i < 1 and '2.0.0' > bbb_version:
+            continue
+
+        print >> sys.stderr, "_rescale_presentation_after_skip_"
+        print >> sys.stderr, (i, t)
+        
         ffmpeg.rescale_image(dictionary[t], new_height, new_width, dictionary[t])
 
 
-def check_presentation_dims(dictionary, dims):
+def check_presentation_dims(dictionary, dims, bbb_version):
     names = dims.keys()
     heights = []
     widths = []
+
     for i in names:
         temp = dims[i]
         heights.append(temp[0])
@@ -135,10 +153,10 @@ def check_presentation_dims(dictionary, dims):
         if dim2:
             new_width += 1
 
-    rescale_presentation(new_height, new_width, dictionary)
+    rescale_presentation(new_height, new_width, dictionary, bbb_version)
 
 
-def prepare():
+def prepare(bbb_version):
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
 
@@ -152,7 +170,7 @@ def prepare():
         ffmpeg.extract_audio_from_video('video/webcams.webm', audio_path + 'audio.ogg')
 
     shutil.copytree("presentation", temp_dir + "presentation")
-    dictionary, length = extract_timings()
+    dictionary, length = extract_timings(bbb_version)
     #debug
     print >> sys.stderr, "dictionary"
     print >> sys.stderr, (dictionary)
@@ -160,9 +178,9 @@ def prepare():
     print >> sys.stderr, (length)
     dims = get_different_presentations(dictionary)
     #debug
-    print >> sys.stderr, "dims"
+    print >> sys.stderr, "dims"	
     print >> sys.stderr, (dims)
-    check_presentation_dims(dictionary, dims)
+    check_presentation_dims(dictionary, dims, bbb_version)
     return dictionary, length, dims
 
 
@@ -173,8 +191,8 @@ def get_different_presentations(dictionary):
     presentations = []
     dims = {}
     for t in times:
-        #if t < 1:
-        #    continue
+        #?if t < 1:
+        #?    continue
 
         name = dictionary[t].split("/")[7]
         # debug
@@ -216,13 +234,24 @@ def zipdir(path):
     #if not os.path.exists('/var/bigbluebutton/playback/presentation/download/' + filename):
     #    os.symlink(source_dir + filename, '/var/bigbluebutton/playback/presentation/download/' + filename)
 
+def bbbversion():
+    global bbb_ver
+    bbb_ver = 0
+    s_events = minidom.parse(source_events)
+    for event in s_events.getElementsByTagName('recording'):
+         bbb_ver =  event.getAttribute('bbb_version')
+    return bbb_ver
 
 def main():
     sys.stderr = open(LOGFILE, 'a')
     print >> sys.stderr, "\n<-------------------" + time.strftime("%c") + "----------------------->\n"
+
+    bbb_version = bbbversion()
+    print >> sys.stderr, "bbb_version: " + bbb_version
+
     os.chdir(source_dir)
 
-    dictionary, length, dims = prepare()
+    dictionary, length, dims = prepare(bbb_version)
 
     audio = audio_path + 'audio.ogg'
     audio_trimmed = temp_dir + 'audio_trimmed.m4a'
@@ -230,11 +259,11 @@ def main():
     slideshow = temp_dir + 'slideshow.mp4'
 
     try:
-        create_slideshow(dictionary, length, slideshow)
+        create_slideshow(dictionary, length, slideshow, bbb_version)
         ffmpeg.trim_audio_start(dictionary, length, audio, audio_trimmed)
         ffmpeg.mux_slideshow_audio(slideshow, audio_trimmed, result)
         serve_webcams()
-        zipdir('./download/')
+        #zipdir('./download/')
         copy_mp4(result, source_dir + meetingId + '.mp4')
     finally:
         print >> sys.stderr, "Cleaning up temp files..."
