@@ -33,4 +33,4 @@ After running the installation script (install.sh), the python script that produ
 
 ## Outputs
 Link to download MP4 file will look like this: https://yourBBBserverURL/download/presentation/{meetingID}/{meetingID}.mp4
-If your BigBlueButton server is connected to Createwebinar.com Advanced contol panel, all webinar participants can download the recorded webinars from Schedule menu.
+If your BigBlueButton server is connected to https://createwebinar.com contol panel, all webinar participants will be able to download the recorded webinars from the website in one click.
