@@ -2,7 +2,7 @@
 ### The code will be maintained by createwebinar.com developer team
 
 A python script that produces downloadable material for existing and new recordings in a BigBlueButton installation.
-Final MP4 video will include only presentation and audio (no chat window, no whiteboard).
+Final MP4 video will include only presentation and audio (no chat window, no whiteboard, no screenshare).
 BigBueButton 2.0 is supported since 10.08.2018. 
 
 ## Requirements
