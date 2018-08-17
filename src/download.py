@@ -1,5 +1,5 @@
-__author__ = 'palexang'
-__email__ = 'palexang@it.auth.gr'
+__author__ = 'CreateWebinar.com'
+__email__ = 'support@createwebinar.com'
 
 from xml.dom import minidom
 import sys
@@ -11,7 +11,6 @@ import re
 import time
 
 # Python script that produces downloadable material from a published bbb recording.
-# http://xkcd.com/1513/
 
 # Catch exception so that the script can be also called manually like: python download.py meetingId,
 # in addition to being called from the bbb control scripts.
