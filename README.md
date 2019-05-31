@@ -5,11 +5,12 @@ A python script that produces downloadable material for existing and new recordi
 Final MP4 video will include only presentation, audio and screenshare (no chat window, no whiteboard).
 - BigBlueButton 2.0 is supported (10.08.2018)
 - Screenshare supported (18.09.2018)
+- BigBlueButton 2.2 is supported (tested with BBB 2.2 beta 8)
 
 ## Requirements
 1. python2.7
 2. ffmpeg compiled with libx264 support (included)
-3. Installed and configured Big Blue Button server (1.1 or 2.0)
+3. Installed and configured Big Blue Button server (1.1 or 2.0+)
 
 ## Installation (need to be root)
 ```
