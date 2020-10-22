@@ -4,16 +4,16 @@
 #                   and Olivier Berger <olivier.berger@telecom-sudparis.eu>
 
 import re
-import sys
 import os
+import time
 import shutil
 import zipfile
 import argparse
-import time
+
+from xml.dom import minidom
 
 import youtube_dl
 
-from xml.dom import minidom
 from youtube_dl.extractor.common import InfoExtractor
 from youtube_dl.utils import (
     xpath_text,
