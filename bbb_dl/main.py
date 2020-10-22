@@ -24,7 +24,6 @@ import bbb_dl.ffmpeg as ffmpeg
 
 from bbb_dl.version import __version__
 
-
 meetingId = 'something-somotherthing'
 
 PATH = '/var/bigbluebutton/published/presentation/'

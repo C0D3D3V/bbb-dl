@@ -1,7 +1,6 @@
 from os import path
 from setuptools import setup, find_packages
 
-
 # Get the version from bbb_dl/version.py without importing the package
 exec(compile(open('bbb_dl/version.py').read(), 'bbb_dl/version.py', 'exec'))
 
