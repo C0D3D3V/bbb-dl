@@ -83,8 +83,38 @@ class BBB_DL(InfoExtractor):
             slides.append(image.get(_x('xlink:href')))
 
         # --------------------  Webcam / Deskshare  --------------------
-        webcams_source = video_website + '/presentation/' + video_id + '/video/webcams.webm'
-        deskshare_source = video_website + '/presentation/' + video_id + '/deskshare/deskshare.webm'
+
+        video_base_url = video_website + '/presentation/' + video_id
+
+        webcams_success = False
+        try:
+            webcams_dl = {
+                'id': video_id,
+                'title': title,
+                'url': video_base_url + '/video/webcams.webm',
+                'timestamp': int(start_time),
+            }
+            self.ydl.params['outtmpl'] = 'webcams (%(id)s).webm'
+            self.ydl.process_ie_result(webcams_dl)
+            webcams_success = True
+        except Exception:
+            pass
+
+        deskshare_success = False
+        try:
+            deskshare_dl = {
+                'id': video_id,
+                'title': title,
+                'url': video_base_url + '/deskshare/deskshare.webm',
+                'timestamp': int(start_time),
+            }
+            self.ydl.params['outtmpl'] = 'deskshare (%(id)s).webm'
+            self.ydl.process_ie_result(deskshare_dl)
+            deskshare_success = True
+        except Exception:
+            pass
+
+        pass
 
 
 def extract_timings(bbb_version):
