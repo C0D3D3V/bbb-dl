@@ -89,7 +89,8 @@ class BBB_DL(InfoExtractor):
             slides.append(image.get(_x('xlink:href')))
 
         # --------------------  Webcam / Deskshare  --------------------
-        sources = {'webcams': '/video/webcams.webm', 'deskshare': '/deskshare/deskshare.webm'}
+        webcams_source = video_website + '/presentation/' + video_id + '/video/webcams.webm'
+        deskshare_source = video_website + '/presentation/' + video_id + '/deskshare/deskshare.webm'
 
 
 def extract_timings(bbb_version):
