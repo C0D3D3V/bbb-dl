@@ -1,7 +1,4 @@
 {
-    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
-    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
-    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -14,7 +11,7 @@
             "args": [
                 "https://bbb-cluster.di.unito.it/playback/presentation/2.0/playback.html?meetingId=bd788745741ab787621c0dafa69a06ef91c0f02d-1603349301553"
             ],
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }

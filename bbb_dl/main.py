@@ -142,15 +142,18 @@ class BBBDL(InfoExtractor):
 
         # Post processing
         audio_path = video_id + '/audio.ogg'
-        # ffmpeg.extract_audio_from_video(webcams_path, audio_path)
+        self.to_screen("Extract Audio")
+        self.ffmpeg.extract_audio_from_video(webcams_path, audio_path)
 
         slideshow_path = self._create_slideshow(slides_timemarks, slides_endmark, deskshare_path, video_id)
 
         audio_trimmed_path = video_id + '/audio.m4a'
-        # ffmpeg.trim_audio_start(slides_timemarks, slides_endmark, audio_path, audio_trimmed_path)
+        self.to_screen("Trim Audio")
+        self.ffmpeg.trim_audio_start(slides_timemarks, slides_endmark, audio_path, audio_trimmed_path)
 
         result_path = title + '.mp4'
-        # ffmpeg.mux_slideshow_audio(slideshow_path, audio_trimmed_path, result_path)
+        self.to_screen("Mux Slideshow")
+        self.ffmpeg.mux_slideshow_audio(slideshow_path, audio_trimmed_path, result_path)
 
     def _create_tmp_dir(self, video_id):
         try:
@@ -220,7 +223,7 @@ class BBBDL(InfoExtractor):
                 continue
 
             self.to_screen('Rescale %s' % (slide_path,))
-            # ffmpeg.rescale_image(slide_path, new_height, new_width, slide_path)
+            self.ffmpeg.rescale_image(slide_path, new_height, new_width, slide_path)
 
     def _create_slideshow(self, slides_timemarks: {}, slides_endmark: int, deskshare_path: str, video_id: str):
         slideshow_path = video_id + '/slideshow.mp4'
@@ -232,7 +235,9 @@ class BBBDL(InfoExtractor):
         times.sort()
 
         deskshare_mp4_path = video_id + '/deskshare.mp4'
-        # ffmpeg.webm_to_mp4(deskshare_path, deskshare_mp4_path)
+        if os.path.exists(deskshare_path):
+            self.to_screen("Convert webm to mp4")
+            self.ffmpeg.webm_to_mp4(deskshare_path, deskshare_mp4_path)
 
         self.to_screen("Create slideshow")
         for i, time_mark in enumerate(times):
@@ -251,17 +256,18 @@ class BBBDL(InfoExtractor):
 
             if "deskshare.png" in image:
                 self.to_screen("Trimming Deskshare at timemark %s (Duration: %.2f)" % (time_mark, duration))
-                # ffmpeg.trim_video_by_seconds(deskshare_mp4_path, t, duration, out_file)
-                # ffmpeg.mp4_to_ts(out_file, out_ts_file)
+                self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, time_mark, duration, out_file)
+                self.ffmpeg.mp4_to_ts(out_file, out_ts_file)
             else:
                 self.to_screen("Trimming Slide at timemark %s (Duration: %.2f)" % (time_mark, duration))
-                # ffmpeg.create_video_from_image(image, duration, out_ts_file)
+                self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
             vl_file.write('file ' + out_ts_file + '\n')
         vl_file.close()
 
-        # ffmpeg.concat_videos(video_list, slideshow_path)
-        # os.remove(video_list)
+        self.to_screen("Concat Slideshow")
+        self.ffmpeg.concat_videos(video_list, slideshow_path)
+        os.remove(video_list)
         return slideshow_path
 
 

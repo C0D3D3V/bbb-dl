@@ -13,123 +13,80 @@ class FFMPEG:
         self.pp = FFmpegPostProcessor(ydl)
         self.pp.check_version()
 
+    def extract_audio_from_video(self, video_file: str, out_file: str):
+        self.pp.run_ffmpeg(video_file, out_file, ["-ab", "160k", "-ac", "2", "-ar", "44100", "-vn"])
 
-def mux_slideshow_audio(video_file, audio_file, out_file):
-    command = '%s -i %s -i %s -map 0 -map 1 -codec copy -shortest %s' % (
-        FFMPEG,
-        video_file,
-        audio_file,
-        out_file,
-    )
-    os.system(command)
+    def rescale_image(self, image, height, width, out_file):
+        if height < width:
+            self.pp.run_ffmpeg(image, out_file, ["-vf", "160k", "pad=%s:%s:0:oh/2-ih/2" % (width, height), "2", "-y"])
+        else:
+            self.pp.run_ffmpeg(image, out_file, ["-vf", "160k", "pad=%s:%s:0:ow/2-iw/2" % (width, height), "2", "-y"])
 
+    def mux_slideshow_audio(self, video_file, audio_file, out_file):
+        self.pp.run_ffmpeg_multiple_files(
+            [video_file, audio_file], out_file, ["-map", "0", "-map", "1", "-codec", 'copy', '-shortest']
+        )
 
-def extract_audio_from_video(video_file, out_file):
-    command = '%s -i %s -ab 160k -ac 2 -ar 44100 -vn %s' % (FFMPEG, video_file, out_file)
-    os.system(command)
+    def create_video_from_image(self, image, duration, out_file):
+        self.pp.run_ffmpeg(
+            image,
+            out_file,
+            [
+                "-loop",
+                "1",
+                "-r",
+                "5",
+                "-f",
+                "image2",
+                "-c:v",
+                "libx264",
+                "-t",
+                str(duration),
+                "-pix_fmt",
+                "yuv420p",
+                "-vf",
+                'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+            ],
+        )
 
+    def concat_videos(self, video_list, out_file):
+        self.pp.run_ffmpeg(video_list, out_file, ["-f", "concat", "-safe", "0", "-c", "copy"])
 
-def create_video_from_image(image, duration, out_file):
-    print("*************** create_video_from_image ******************")
-    print(image, "\n", duration, "\n", out_file)
-    command = (
-        '%s -loop 1 -r 5 -f image2 -i %s -c:v %s -t %s -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" '
-        '%s' % (FFMPEG, image, VID_ENCODER, duration, out_file)
-    )
-    os.system(command)
+    def mp4_to_ts(self, inp_file, out_file):
+        self.pp.run_ffmpeg(inp_file, out_file, ["-c", "copy", "-bsf:v", "h264_mp4toannexb", "-f", "mpegts"])
 
+    def webm_to_mp4(self, webm_file, mp4_file):
+        self.pp.run_ffmpeg(webm_file, mp4_file, ["-qscale", "0"])
 
-def concat_videos(video_list, out_file):
-    command = '%s -f concat -safe 0 -i %s -c copy %s' % (FFMPEG, video_list, out_file)
-    os.system(command)
+    def trim_video_by_seconds(self, video_file, start, end, out_file):
+        self.pp.run_ffmpeg(video_file, out_file, ["-ss", str(start), "-c", "copy", "-t", str(end)])
 
+    def _get_trim_marks(self, start, end):
+        start_h = start / 3600
+        start_m = start / 60 - start_h * 60
+        start_s = start % 60
 
-def mp4_to_ts(inp, output):
-    command = '%s -i %s -c copy -bsf:v h264_mp4toannexb -f mpegts %s' % (FFMPEG, inp, output)
-    os.system(command)
+        end_h = end / 3600
+        end_m = end / 60 - end_h * 60
+        end_s = end % 60
 
+        str1 = '%d:%d:%d' % (start_h, start_m, start_s)
+        str2 = '%d:%d:%d' % (end_h, end_m, end_s)
+        return str1, str2
 
-def concat_ts_videos(inp, output):
-    command = '%s -i %s -c copy -bsf:a aac_adtstoasc %s' % (FFMPEG, inp, output)
-    os.system(command)
+    def trim_audio_start(self, slides_timemarks, slides_endmark, full_audio, audio_trimmed):
+        times = list(slides_timemarks.keys())
+        times.sort()
+        self.trim_audio(full_audio, int(round(times[0])), int(slides_endmark), audio_trimmed)
 
+    def trim_audio(self, audio_file, start, end, out_file):
+        temp_file = 'temp.mp3'
+        str1, str2 = self._get_trim_marks(start, end)
 
-def rescale_image(image, height, width, out_file):
-    if height < width:
-        command = '%s -i %s -vf pad=%s:%s:0:oh/2-ih/2 %s -y' % (FFMPEG, image, width, height, out_file)
-    else:
-        command = '%s -i %s -vf pad=%s:%s:0:ow/2-iw/2 %s -y' % (FFMPEG, image, width, height, out_file)
+        self.pp.run_ffmpeg(audio_file, temp_file, ["-ss", str1, "-t", str2])
 
-    os.system(command)
+        self.mp3_to_aac(temp_file, out_file)
+        os.remove(temp_file)
 
-
-def trim(start, end):
-    start_h = start / 3600
-    start_m = start / 60 - start_h * 60
-    start_s = start % 60
-
-    end_h = end / 3600
-    end_m = end / 60 - end_h * 60
-    end_s = end % 60
-
-    str1 = '%d:%d:%d' % (start_h, start_m, start_s)
-    str2 = '%d:%d:%d' % (end_h, end_m, end_s)
-    return str1, str2
-
-
-def trim_video(video_file, start, end, out_file):
-    str1, str2 = trim(start, end)
-    command = '%s -ss %s -t %s -i %s -vcodec copy -acodec copy %s' % (
-        FFMPEG,
-        str1,
-        str2,
-        video_file,
-        out_file,
-    )
-    os.system(command)
-
-
-def trim_video_by_seconds(video_file, start, end, out_file):
-    command = '%s -ss %s -i %s -c copy -t %s %s' % (FFMPEG, start, video_file, end, out_file)
-    os.system(command)
-
-
-def trim_audio(audio_file, start, end, out_file):
-    temp_file = 'temp.mp3'
-    str1, str2 = trim(start, end)
-    command = '%s -ss %s -t %s -i %s %s' % (FFMPEG, str1, str2, audio_file, temp_file)
-    os.system(command)
-    mp3_to_aac(temp_file, out_file)
-    os.remove(temp_file)
-
-
-def trim_audio_start(dictionary, length, full_audio, audio_trimmed):
-    times = dictionary.keys()
-    times.sort()
-    trim_audio(full_audio, int(round(times[0])), int(length), audio_trimmed)
-
-
-def trim_video_start(dictionary, length, full_vid, video_trimmed):
-    times = dictionary.keys()
-    times.sort()
-    trim_video(full_vid, int(round(times[2])), int(length), video_trimmed)
-
-
-def mp3_to_aac(mp3_file, aac_file):
-    command = '%s -i %s -c:a libfdk_aac %s' % (FFMPEG, mp3_file, aac_file)
-    os.system(command)
-
-
-def webm_to_mp4(webm_file, mp4_file):
-    command = '%s -i %s -qscale 0 %s' % (FFMPEG, webm_file, mp4_file)
-    os.system(command)
-
-
-def audio_to_video(audio_file, image_file, video_file):
-    command = '%s -loop 1 -i %s -i %s -c:v libx264 -tune stillimage -c:a libfdk_aac -pix_fmt yuv420p -shortest %s' % (
-        FFMPEG,
-        image_file,
-        audio_file,
-        video_file,
-    )
-    os.system(command)
+    def mp3_to_aac(self, mp3_file, aac_file):
+        self.pp.run_ffmpeg(mp3_file, aac_file, ["-c:a", "libfdk_aac"])
