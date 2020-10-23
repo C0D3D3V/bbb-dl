@@ -50,7 +50,7 @@ class BBBDL(InfoExtractor):
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
 
-    def run(self, dl_url: str, without_webcam: bool):
+    def run(self, dl_url: str, without_webcam: bool, keep_tmp_files: bool):
         m_obj = self._VALID_URL_RE.match(dl_url)
 
         video_id = m_obj.group('id')
@@ -160,8 +160,9 @@ class BBBDL(InfoExtractor):
         else:
             self.ffmpeg.mux_slideshow_with_webcam(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
 
-        self.to_screen("Cleanup")
-        self._remove_tmp_dir(video_id)
+        if not keep_tmp_files:
+            self.to_screen("Cleanup")
+            self._remove_tmp_dir(video_id)
 
     def _create_tmp_dir(self, video_id):
         try:
@@ -312,6 +313,16 @@ def get_parser():
     )
 
     parser.add_argument(
+        '--keep-tmp-files',
+        '-kt',
+        action='store_true',
+        help=(
+            'Use this option if you want to keep the temporary files.'
+            + 'Usually the temporary files are deleted at the end of the process.'
+        ),
+    )
+
+    parser.add_argument(
         '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
     )
 
@@ -323,4 +334,4 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL().run(args.URL, args.add_webcam)
+    BBBDL().run(args.URL, args.add_webcam, args.keep_tmp_files)
