@@ -9,7 +9,6 @@ import posixpath
 import re
 import shutil
 import socket
-import time
 import zipfile
 import urllib.parse as urlparse
 
@@ -84,20 +83,50 @@ class BBBDL(InfoExtractor):
         meta = metadata.find('./meta')
         start_time = xpath_text(metadata, 'start_time')
         title = xpath_text(meta, 'meetingName')
+        bbb_version = xpath_text(meta, 'bbb-origin-version').split(' ')[0]
+        self.to_screen("BBB version: " + bbb_version)
 
         # Downloading Slides
         images = shapes.findall(_s("./svg:image[@class='slide']"))
         slides = []
+        fist_img = True
+        slides_endmark = 0
+        slides_timemarks = {}
+        slides_infos = {}
+
         for image in images:
-            slides.append(video_website + '/presentation/' + video_id + '/' + image.get(_x('xlink:href')))
+            img_path = image.get(_x('xlink:href'))
+            slides.append(video_website + '/presentation/' + video_id + '/' + img_path)
+
+            if fist_img and '2.0.0' > bbb_version:
+                continue
+            fist_img = False
+
+            in_times = image.get('in').split(' ')
+            out_times = image.get('out').split(' ')
+
+            slide_filename = video_id + '/' + self.determine_filename(img_path)
+            slides_infos[slide_filename] = {
+                'h': int(image.get('height')),
+                'w': int(image.get('width')),
+            }
+
+            temp = float(out_times[len(out_times) - 1])
+            if temp > slides_endmark:
+                slides_endmark = temp
+
+            for in_time in in_times:
+                slides_timemarks[float(in_time)] = slide_filename
 
         self.to_screen("Downloading slides")
         self._write_slides(slides, video_id, self.ydl)
+        self._rescale_slides(slides_infos)
 
         # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
 
         webcams_success = False
+        webcams_path = video_id + '/webcams.webm'
         try:
             self.to_screen("Downloading webcams.webm")
             webcams_dl = {
@@ -106,13 +135,14 @@ class BBBDL(InfoExtractor):
                 'url': video_base_url + '/video/webcams.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = '%(id)s/webcams.webm'
+            self.ydl.params['outtmpl'] = webcams_path
             self.ydl.process_ie_result(webcams_dl)
             webcams_success = True
         except DownloadError:
             pass
 
         deskshare_success = False
+        deskshare_path = video_id + '/deskshare.webm'
         try:
             self.to_screen("Downloading deskshare.webm")
             deskshare_dl = {
@@ -121,11 +151,15 @@ class BBBDL(InfoExtractor):
                 'url': video_base_url + '/deskshare/deskshare.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = '%(id)s/deskshare.webm'
+            self.ydl.params['outtmpl'] = deskshare_path
             self.ydl.process_ie_result(deskshare_dl)
             deskshare_success = True
         except DownloadError:
             pass
+
+        # Post processing
+        audio_path = video_id + '/audio.ogg'
+        # ffmpeg.extract_audio_from_video(webcams_path, audio_path)
 
     def _create_tmp_dir(self, video_id):
         try:
@@ -134,11 +168,15 @@ class BBBDL(InfoExtractor):
         except (OSError, IOError) as err:
             self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
 
+    @staticmethod
+    def determine_filename(url: str):
+        url_parsed = urlparse.urlparse(url)
+        return posixpath.basename(url_parsed.path)
+
     def _write_slides(self, slides: [], path: str, ydl: YoutubeDL):
 
         for slide_url in slides:
-            url_parsed = urlparse.urlparse(slide_url)
-            slide_filename = posixpath.basename(url_parsed.path)
+            slide_filename = self.determine_filename(slide_url)
 
             download_path = os.path.join(path, slide_filename)
 
@@ -154,32 +192,36 @@ class BBBDL(InfoExtractor):
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
                     self.report_warning('Unable to download slide "%s": %s' % (slide_url, error_to_compat_str(err)))
 
+    def _rescale_slides(self, slides_info: {}):
+        heights = []
+        widths = []
 
-def extract_timings(bbb_version):
-    doc = minidom.parse(events_file)
-    dictionary = {}
-    total_length = 0
-    j = 0
+        for slide_path in slides_info:
+            slide_info = slides_info[slide_path]
+            heights.append(slide_info.get('h'))
+            widths.append(slide_info.get('w'))
 
-    for image in doc.getElementsByTagName('image'):
-        path = image.getAttribute('xlink:href')
+        if len(heights) == 0 or len(widths) == 0:
+            return
 
-        if j == 0 and '2.0.0' > bbb_version:
-            path = u'/usr/local/bigbluebutton/core/scripts/logo.png'
-            j += 1
+        new_height = max(heights)
+        new_width = max(widths)
 
-        in_times = str(image.getAttribute('in')).split(' ')
-        out_times = image.getAttribute('out').split(' ')
+        if new_height % 2:
+            new_height += 1
+        if new_width % 2:
+            new_width += 1
 
-        temp = float(out_times[len(out_times) - 1])
-        if temp > total_length:
-            total_length = temp
+        for slide_path in slides_info:
+            slide_info = slides_info[slide_path]
+            slide_w = slide_info.get('w')
+            slide_h = slide_info.get('h')
 
-        occurrences = len(in_times)
-        for i in range(occurrences):
-            dictionary[float(in_times[i])] = temp_dir + str(path)
+            if new_height == slide_h and new_width == slide_w:
+                continue
 
-    return dictionary, total_length
+            print('Rescale %s' % (slide_path,))
+            # ffmpeg.rescale_image(slide_path, new_height, new_width, slide_path)
 
 
 def create_slideshow(dictionary, length, result, bbb_version):
@@ -238,98 +280,8 @@ def get_presentation_dims(presentation_name):
             return height, width
 
 
-def rescale_presentation(new_height, new_width, dictionary, bbb_version):
-    times = dictionary.keys()
-    times.sort()
-    for i, t in enumerate(times):
-        # ?
-        # print >> sys.stderr, "_rescale_presentation_"
-        # print >> sys.stderr, (i, t)
-
-        if i < 1 and '2.0.0' > bbb_version:
-            continue
-
-        # print >> sys.stderr, "_rescale_presentation_after_skip_"
-        # print >> sys.stderr, (i, t)
-
-        ffmpeg.rescale_image(dictionary[t], new_height, new_width, dictionary[t])
-
-
-def check_presentation_dims(dictionary, dims, bbb_version):
-    names = dims.keys()
-    heights = []
-    widths = []
-
-    for i in names:
-        temp = dims[i]
-        heights.append(temp[0])
-        widths.append(temp[1])
-
-    height = max(heights)
-    width = max(widths)
-
-    dim1 = height % 2
-    dim2 = width % 2
-
-    new_height = height
-    new_width = width
-
-    if dim1 or dim2:
-        if dim1:
-            new_height += 1
-        if dim2:
-            new_width += 1
-
-    rescale_presentation(new_height, new_width, dictionary, bbb_version)
-
-
 def prepare(bbb_version):
-    if not os.path.exists(target_dir):
-        os.mkdir(target_dir)
-
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-
-    if not os.path.exists('audio'):
-        global audio_path
-        audio_path = temp_dir + 'audio/'
-        os.mkdir(audio_path)
-        ffmpeg.extract_audio_from_video('video/webcams.webm', audio_path + 'audio.ogg')
-
-    shutil.copytree("presentation", temp_dir + "presentation")
-    dictionary, length = extract_timings(bbb_version)
-    # debug
-    print("dictionary")
-    print(dictionary)
-    print("length")
-    print(length)
-    dims = get_different_presentations(dictionary)
-    # debug
-    print("dims")
-    print(dims)
-    check_presentation_dims(dictionary, dims, bbb_version)
-    return dictionary, length, dims
-
-
-def get_different_presentations(dictionary):
-    times = dictionary.keys()
-    print("times")
-    print(times)
-    presentations = []
-    dims = {}
-    for t in times:
-        # ?if t < 1:
-        # ?    continue
-
-        name = dictionary[t].split("/")[7]
-        # debug
-        print("name")
-        print(name)
-        if name not in presentations:
-            presentations.append(name)
-            dims[name] = get_presentation_dims(name)
-
-    return dims
+    check_presentation_dims(dictionary, dims)
 
 
 def cleanup():
@@ -359,24 +311,9 @@ def zipdir(path):
     zipf.close()
 
 
-def bbbversion():
-    global bbb_ver
-    bbb_ver = 0
-    s_events = minidom.parse(source_events)
-    for event in s_events.getElementsByTagName('recording'):
-        bbb_ver = event.getAttribute('bbb_version')
-    return bbb_ver
-
-
 def run_download():
-    print("\n<-------------------" + time.strftime("%c") + "----------------------->\n")
 
-    bbb_version = bbbversion()
-    print("bbb_version: " + bbb_version)
-
-    os.chdir(source_dir)
-
-    dictionary, length, dims = prepare(bbb_version)
+    # dictionary, length, dims = prepare(bbb_version)
 
     audio = audio_path + 'audio.ogg'
     audio_trimmed = temp_dir + 'audio_trimmed.m4a'
