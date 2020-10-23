@@ -161,6 +161,14 @@ class BBBDL(InfoExtractor):
         audio_path = video_id + '/audio.ogg'
         # ffmpeg.extract_audio_from_video(webcams_path, audio_path)
 
+        slideshow_path = self._create_slideshow(slides_timemarks, slides_endmark, deskshare_path, video_id)
+
+        audio_trimmed_path = video_id + '/audio.m4a'
+        # ffmpeg.trim_audio_start(slides_timemarks, slides_endmark, audio_path, audio_trimmed_path)
+
+        result_path = title + '.mp4'
+        # ffmpeg.mux_slideshow_audio(slideshow_path, audio_trimmed_path, result_path)
+
     def _create_tmp_dir(self, video_id):
         try:
             if not os.path.exists(video_id):
@@ -228,66 +236,50 @@ class BBBDL(InfoExtractor):
             if new_height == slide_h and new_width == slide_w:
                 continue
 
-            print('Rescale %s' % (slide_path,))
+            self.to_screen('Rescale %s' % (slide_path,))
             # ffmpeg.rescale_image(slide_path, new_height, new_width, slide_path)
 
+    def _create_slideshow(self, slides_timemarks: {}, slides_endmark: int, deskshare_path: str, video_id: str):
+        slideshow_path = video_id + '/slideshow.mp4'
 
-def create_slideshow(dictionary, length, result, bbb_version):
-    video_list = 'video_list.txt'
-    f = open(video_list, 'w')
+        video_list = video_id + '/video_list.txt'
+        vl_file = open(video_list, 'w')
 
-    times = dictionary.keys()
-    times.sort()
+        times = list(slides_timemarks.keys())
+        times.sort()
 
-    ffmpeg.webm_to_mp4(SOURCE_DESKSHARE, TMP_DESKSHARE_FILE)
+        deskshare_mp4_path = video_id + '/deskshare.mp4'
+        # ffmpeg.webm_to_mp4(deskshare_path, deskshare_mp4_path)
 
-    print("-=create_slideshow=-")
-    for i, t in enumerate(times):
-        # print >> sys.stderr, (i, t)
+        self.to_screen("Create slideshow")
+        for i, time_mark in enumerate(times):
 
-        # if i < 1 and '2.0.0' > bbbversion:
-        #   continue
+            tmp_name = '/%d.mp4' % i
+            tmp_ts_name = '/%d.ts' % i
+            image = slides_timemarks[time_mark]
 
-        tmp_name = '%d.mp4' % i
-        tmp_ts_name = '%d.ts' % i
-        image = dictionary[t]
+            if i == len(times) - 1:
+                duration = slides_endmark - time_mark
+            else:
+                duration = times[i + 1] - time_mark
 
-        if i == len(times) - 1:
-            duration = length - t
-        else:
-            duration = times[i + 1] - t
+            out_file = video_id + tmp_name
+            out_ts_file = video_id + tmp_ts_name
 
-        out_file = temp_dir + tmp_name
-        out_ts_file = temp_dir + tmp_ts_name
+            if "deskshare.png" in image:
+                self.to_screen("Trimming Deskshare at timemark %s (Duration: %.2f)" % (time_mark, duration))
+                # ffmpeg.trim_video_by_seconds(deskshare_mp4_path, t, duration, out_file)
+                # ffmpeg.mp4_to_ts(out_file, out_ts_file)
+            else:
+                self.to_screen("Trimming Slide at timemark %s (Duration: %.2f)" % (time_mark, duration))
+                # ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
-        if "deskshare.png" in image:
-            print(0, i, t, duration)
-            ffmpeg.trim_video_by_seconds(TMP_DESKSHARE_FILE, t, duration, out_file)
-            ffmpeg.mp4_to_ts(out_file, out_ts_file)
-        else:
-            print(1, i, t, duration)
-            ffmpeg.create_video_from_image(image, duration, out_ts_file)
+            vl_file.write('file ' + out_ts_file + '\n')
+        vl_file.close()
 
-        f.write('file ' + out_ts_file + '\n')
-    f.close()
-
-    ffmpeg.concat_videos(video_list, result)
-    os.remove(video_list)
-
-
-def run_download():
-
-    audio = audio_path + 'audio.ogg'
-    audio_trimmed = temp_dir + 'audio_trimmed.m4a'
-    result = target_dir + 'meeting.mp4'
-    slideshow = temp_dir + 'slideshow.mp4'
-
-    try:
-        create_slideshow(dictionary, length, slideshow, bbb_version)
-        ffmpeg.trim_audio_start(dictionary, length, audio, audio_trimmed)
-        ffmpeg.mux_slideshow_audio(slideshow, audio_trimmed, result)
-    finally:
-        print("Done")
+        # ffmpeg.concat_videos(video_list, slideshow_path)
+        # os.remove(video_list)
+        return slideshow_path
 
 
 def get_parser():
