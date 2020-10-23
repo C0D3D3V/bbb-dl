@@ -69,6 +69,7 @@ class BBBDL(InfoExtractor):
         video_website = m_obj.group('website')
 
         # We don't parse anything, but make sure it exists
+        self.to_screen("Downloading meta informations")
         self._download_webpage(dl_url, video_id)
 
         # Extract basic metadata (more available in metadata.xml)
@@ -94,6 +95,7 @@ class BBBDL(InfoExtractor):
         except (OSError, IOError) as err:
             self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
 
+        self.to_screen("Downloading slides")
         self._write_slides(slides, video_id, self.ydl)
 
         # --------------------  Webcam / Deskshare  --------------------
@@ -102,6 +104,7 @@ class BBBDL(InfoExtractor):
 
         webcams_success = False
         try:
+            self.to_screen("Downloading webcams.webm")
             webcams_dl = {
                 'id': video_id,
                 'title': title,
@@ -116,6 +119,7 @@ class BBBDL(InfoExtractor):
 
         deskshare_success = False
         try:
+            self.to_screen("Downloading deskshare.webm")
             deskshare_dl = {
                 'id': video_id,
                 'title': title,
