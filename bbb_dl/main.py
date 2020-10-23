@@ -23,7 +23,7 @@ from youtube_dl.utils import xpath_text, xpath_with_ns, encodeFilename, error_to
 
 from youtube_dl.extractor.common import InfoExtractor
 
-import bbb_dl.ffmpeg as ffmpeg
+from bbb_dl.ffmpeg import FFMPEG
 
 from bbb_dl.version import __version__
 
@@ -42,6 +42,7 @@ class BBBDL(InfoExtractor):
 
         self.ydl = youtube_dl.YoutubeDL()
         self.set_downloader(self.ydl)
+        self.ffmpeg = FFMPEG
 
     def run(self, dl_url: str):
         m_obj = self._VALID_URL_RE.match(dl_url)
