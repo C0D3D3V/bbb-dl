@@ -156,7 +156,9 @@ class BBBDL(InfoExtractor):
         self.to_screen("Extract Audio")
         self.ffmpeg.extract_audio_from_video(webcams_path, audio_path)
 
-        slideshow_path = self._create_slideshow(slides_timemarks, slides_endmark, deskshare_path, video_id)
+        slideshow_path = self._create_slideshow(
+            slides_timemarks, slides_infos, slides_endmark, deskshare_path, video_id
+        )
 
         audio_trimmed_path = video_id + '/audio.m4a'
         self.to_screen("Trim Audio")
@@ -237,7 +239,9 @@ class BBBDL(InfoExtractor):
             self.to_screen('Rescale %s' % (slide_name,))
             self.ffmpeg.rescale_image(slide_path, new_height, new_width)
 
-    def _create_slideshow(self, slides_timemarks: {}, slides_endmark: int, deskshare_path: str, video_id: str):
+    def _create_slideshow(
+        self, slides_timemarks: {}, slides_infos: {}, slides_endmark: int, deskshare_path: str, video_id: str
+    ):
         slideshow_path = video_id + '/slideshow.mp4'
 
         video_list = video_id + '/video_list.txt'
@@ -256,7 +260,8 @@ class BBBDL(InfoExtractor):
 
             tmp_name = '%d.mp4' % i
             tmp_ts_name = '%d.ts' % i
-            image = slides_timemarks[time_mark]
+            slide = slides_infos.get(slides_timemarks[time_mark])
+            image = slide.get('filepath')
 
             if i == len(times) - 1:
                 duration = slides_endmark - time_mark
@@ -267,11 +272,11 @@ class BBBDL(InfoExtractor):
             out_ts_file = video_id + '/' + tmp_ts_name
 
             if "deskshare.png" in image:
-                self.to_screen("Trimming Deskshare at timemark %s (Duration: %.2f)" % (time_mark, duration))
+                self.to_screen("Trimming Deskshare at time stamp %s (Duration: %.2f)" % (time_mark, duration))
                 self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, time_mark, duration, out_file)
                 self.ffmpeg.mp4_to_ts(out_file, out_ts_file)
             else:
-                self.to_screen("Trimming Slide at timemark %s (Duration: %.2f)" % (time_mark, duration))
+                self.to_screen("Trimming Slide at time stamp %s (Duration: %.2f)" % (time_mark, duration))
                 self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
             vl_file.write("file " + tmp_ts_name + "\n")
