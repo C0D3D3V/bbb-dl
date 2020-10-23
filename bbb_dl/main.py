@@ -3,22 +3,35 @@
 # original authors: CreateWebinar.com <support@createwebinar.com>
 #                   and Olivier Berger <olivier.berger@telecom-sudparis.eu>
 
-import re
-import os
-import time
-import shutil
-import zipfile
 import argparse
+import os
+import posixpath
+import re
+import shutil
+import socket
+import time
+import zipfile
+import urllib.parse as urlparse
 
 from xml.dom import minidom
 
 import youtube_dl
 
-from youtube_dl.extractor.common import InfoExtractor
+from youtube_dl import YoutubeDL
+
+from youtube_dl.compat import (
+    compat_http_client,
+    compat_urllib_error,
+)
 from youtube_dl.utils import (
     xpath_text,
     xpath_with_ns,
+    determine_ext,
+    encodeFilename,
+    error_to_compat_str,
 )
+
+from youtube_dl.extractor.common import InfoExtractor
 
 import bbb_dl.ffmpeg as ffmpeg
 
@@ -43,14 +56,14 @@ _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
 _x = lambda p: xpath_with_ns(p, {'xlink': 'http://www.w3.org/1999/xlink'})
 
 
-class BBB_DL(InfoExtractor):
+class BBBDL(InfoExtractor):
     _VALID_URL = (
         r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
     )
 
     def __init__(self):
         if '_VALID_URL_RE' not in self.__dict__:
-            BBB_DL._VALID_URL_RE = re.compile(self._VALID_URL)
+            BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
         self.ydl = youtube_dl.YoutubeDL()
         self.set_downloader(self.ydl)
@@ -79,7 +92,15 @@ class BBB_DL(InfoExtractor):
         images = shapes.findall(_s("./svg:image[@class='slide']"))
         slides = []
         for image in images:
-            slides.append(image.get(_x('xlink:href')))
+            slides.append(video_website + '/presentation/' + video_id + '/' + image.get(_x('xlink:href')))
+
+        try:
+            if not os.path.exists(video_id):
+                os.makedirs(video_id)
+        except (OSError, IOError) as err:
+            self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
+
+        self._write_slides(slides, video_id, self.ydl)
 
         # --------------------  Webcam / Deskshare  --------------------
 
@@ -93,7 +114,7 @@ class BBB_DL(InfoExtractor):
                 'url': video_base_url + '/video/webcams.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = 'webcams (%(id)s).webm'
+            self.ydl.params['outtmpl'] = '%(id)s/webcams.webm'
             self.ydl.process_ie_result(webcams_dl)
             webcams_success = True
         except Exception:
@@ -107,13 +128,33 @@ class BBB_DL(InfoExtractor):
                 'url': video_base_url + '/deskshare/deskshare.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = 'deskshare (%(id)s).webm'
+            self.ydl.params['outtmpl'] = '%(id)s/deskshare.webm'
             self.ydl.process_ie_result(deskshare_dl)
             deskshare_success = True
         except Exception:
             pass
 
         pass
+
+    def _write_slides(self, slides: [], path: str, ydl: YoutubeDL):
+
+        for slide_url in slides:
+            url_parsed = urlparse.urlparse(slide_url)
+            slide_filename = posixpath.basename(url_parsed.path)
+
+            download_path = os.path.join(path, slide_filename)
+
+            if os.path.exists(encodeFilename(download_path)):
+                self.to_screen('Slide %s is already present' % (slide_filename))
+            else:
+                self.to_screen('Downloading slide %s...' % (slide_filename))
+                try:
+                    uf = ydl.urlopen(slide_url)
+                    with open(encodeFilename(download_path), 'wb') as thumbf:
+                        shutil.copyfileobj(uf, thumbf)
+                    self.to_screen('Writing slide %s to: %s' % (slide_filename, download_path))
+                except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
+                    self.report_warning('Unable to download slide "%s": %s' % (slide_url, error_to_compat_str(err)))
 
 
 def extract_timings(bbb_version):
@@ -377,4 +418,4 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBB_DL().run(args.URL)
+    BBBDL().run(args.URL)
