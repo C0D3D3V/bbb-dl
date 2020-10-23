@@ -26,7 +26,6 @@ from youtube_dl.compat import (
 from youtube_dl.utils import (
     xpath_text,
     xpath_with_ns,
-    determine_ext,
     encodeFilename,
     error_to_compat_str,
 )
