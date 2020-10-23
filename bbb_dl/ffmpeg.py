@@ -2,6 +2,7 @@
 # Original author: CreateWebinar.com
 
 import os
+import shutil
 import subprocess
 
 from youtube_dl import YoutubeDL
@@ -61,12 +62,12 @@ class FFMPEG:
         if os.path.isfile(out_file):
             return
         self.pp.run_ffmpeg(video_file, out_file, ["-ab", "160k", "-ac", "2", "-ar", "44100", "-vn"])
+        # self.pp.run_ffmpeg(video_file, out_file, ["-vn"])
 
-    def rescale_image(self, image, height, width, out_file):
-        if height < width:
-            self.pp.run_ffmpeg(image, out_file, ["-vf", "160k", "pad=%s:%s:0:oh/2-ih/2" % (width, height), "2"])
-        else:
-            self.pp.run_ffmpeg(image, out_file, ["-vf", "160k", "pad=%s:%s:0:ow/2-iw/2" % (width, height), "2"])
+    def rescale_image(self, image, height, width):
+        out_file = image + "-new.png"
+        self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
+        shutil.move(out_file, image)
 
     def mux_slideshow_audio(self, video_file, audio_file, out_file):
         if os.path.isfile(out_file):

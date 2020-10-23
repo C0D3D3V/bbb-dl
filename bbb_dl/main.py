@@ -19,7 +19,14 @@ from youtube_dl.compat import (
     compat_http_client,
     compat_urllib_error,
 )
-from youtube_dl.utils import xpath_text, xpath_with_ns, encodeFilename, error_to_compat_str, DownloadError
+from youtube_dl.utils import (
+    xpath_text,
+    xpath_with_ns,
+    encodeFilename,
+    error_to_compat_str,
+    DownloadError,
+    determine_ext,
+)
 
 from youtube_dl.extractor.common import InfoExtractor
 
@@ -72,15 +79,13 @@ class BBBDL(InfoExtractor):
 
         # Downloading Slides
         images = shapes.findall(_s("./svg:image[@class='slide']"))
-        slides = []
         fist_img = True
         slides_endmark = 0
         slides_timemarks = {}
         slides_infos = {}
-
+        counter = 0
         for image in images:
             img_path = image.get(_x('xlink:href'))
-            slides.append(video_website + '/presentation/' + video_id + '/' + img_path)
 
             if fist_img and '2.0.0' > bbb_version:
                 continue
@@ -89,21 +94,26 @@ class BBBDL(InfoExtractor):
             in_times = image.get('in').split(' ')
             out_times = image.get('out').split(' ')
 
-            slide_filename = video_id + '/' + self.determine_filename(img_path)
-            slides_infos[slide_filename] = {
-                'h': int(image.get('height')),
-                'w': int(image.get('width')),
-            }
+            if img_path not in slides_infos:
+                slide_filename = 'slide-' + str(counter) + '.' + determine_ext(img_path)
+                slides_infos[img_path] = {
+                    'h': int(image.get('height')),
+                    'w': int(image.get('width')),
+                    'url': video_website + '/presentation/' + video_id + '/' + img_path,
+                    'filename': slide_filename,
+                    'filepath': video_id + '/' + slide_filename,
+                }
+                counter += 1
 
             temp = float(out_times[len(out_times) - 1])
             if temp > slides_endmark:
                 slides_endmark = temp
 
             for in_time in in_times:
-                slides_timemarks[float(in_time)] = slide_filename
+                slides_timemarks[float(in_time)] = img_path
 
         self.to_screen("Downloading slides")
-        self._write_slides(slides, video_id, self.ydl)
+        self._write_slides(slides_infos, self.ydl)
         self._rescale_slides(slides_infos)
 
         # Downlaoding Webcam / Deskshare
@@ -174,17 +184,13 @@ class BBBDL(InfoExtractor):
         except (OSError, IOError) as err:
             self.ydl.report_error('unable to remove directory ' + error_to_compat_str(err))
 
-    @staticmethod
-    def determine_filename(url: str):
-        url_parsed = urlparse.urlparse(url)
-        return posixpath.basename(url_parsed.path)
+    def _write_slides(self, slides_infos: {}, ydl: YoutubeDL):
 
-    def _write_slides(self, slides: [], path: str, ydl: YoutubeDL):
-
-        for slide_url in slides:
-            slide_filename = self.determine_filename(slide_url)
-
-            download_path = os.path.join(path, slide_filename)
+        for slide_id in slides_infos:
+            slide = slides_infos[slide_id]
+            slide_url = slide.get('url')
+            slide_filename = slide.get('filename')
+            download_path = slide.get('filepath')
 
             if os.path.exists(encodeFilename(download_path)):
                 self.to_screen('Slide %s is already present' % (slide_filename))
@@ -198,14 +204,14 @@ class BBBDL(InfoExtractor):
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
                     self.report_warning('Unable to download slide "%s": %s' % (slide_url, error_to_compat_str(err)))
 
-    def _rescale_slides(self, slides_info: {}):
+    def _rescale_slides(self, slides_infos: {}):
         heights = []
         widths = []
 
-        for slide_path in slides_info:
-            slide_info = slides_info[slide_path]
-            heights.append(slide_info.get('h'))
-            widths.append(slide_info.get('w'))
+        for slide_id in slides_infos:
+            slide = slides_infos[slide_id]
+            heights.append(slide.get('h'))
+            widths.append(slide.get('w'))
 
         if len(heights) == 0 or len(widths) == 0:
             return
@@ -218,16 +224,18 @@ class BBBDL(InfoExtractor):
         if new_width % 2:
             new_width += 1
 
-        for slide_path in slides_info:
-            slide_info = slides_info[slide_path]
-            slide_w = slide_info.get('w')
+        for slide_id in slides_infos:
+            slide_info = slides_infos[slide_id]
             slide_h = slide_info.get('h')
+            slide_w = slide_info.get('w')
+            slide_name = slide_info.get('filename')
+            slide_path = slide_info.get('filepath')
 
             if new_height == slide_h and new_width == slide_w:
                 continue
 
-            self.to_screen('Rescale %s' % (slide_path,))
-            self.ffmpeg.rescale_image(slide_path, new_height, new_width, slide_path)
+            self.to_screen('Rescale %s' % (slide_name,))
+            self.ffmpeg.rescale_image(slide_path, new_height, new_width)
 
     def _create_slideshow(self, slides_timemarks: {}, slides_endmark: int, deskshare_path: str, video_id: str):
         slideshow_path = video_id + '/slideshow.mp4'
