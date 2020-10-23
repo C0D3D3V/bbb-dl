@@ -40,7 +40,8 @@ class BBBDL(InfoExtractor):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
-        self.ydl = youtube_dl.YoutubeDL()
+        ydl_options = {"verbose": True}
+        self.ydl = youtube_dl.YoutubeDL(ydl_options)
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
 
@@ -142,8 +143,9 @@ class BBBDL(InfoExtractor):
 
         # Post processing
         audio_path = video_id + '/audio.ogg'
-        self.to_screen("Extract Audio")
-        self.ffmpeg.extract_audio_from_video(webcams_path, audio_path)
+        if not os.path.exists(audio_path):
+            self.to_screen("Extract Audio")
+            self.ffmpeg.extract_audio_from_video(webcams_path, audio_path)
 
         slideshow_path = self._create_slideshow(slides_timemarks, slides_endmark, deskshare_path, video_id)
 
@@ -262,7 +264,7 @@ class BBBDL(InfoExtractor):
                 self.to_screen("Trimming Slide at timemark %s (Duration: %.2f)" % (time_mark, duration))
                 self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
-            vl_file.write('file ' + out_ts_file + '\n')
+            vl_file.write("file '" + out_ts_file + "'\n")
         vl_file.close()
 
         self.to_screen("Concat Slideshow")
