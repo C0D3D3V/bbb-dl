@@ -41,11 +41,13 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
 
         if self._downloader.params.get('verbose', False):
             self._downloader.to_screen('[debug] ffmpeg command line: %s' % shell_quote(cmd))
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        p = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, universal_newlines=True
+        )
 
         last_line = ''
         for line in p.stderr:
-            line = line.decode('utf-8', 'replace')
+            # line = line.decode('utf-8', 'replace')
             if line.find('time=') > 0:
                 print('\033[K' + line.replace('\n', '') + '\r', end='')
             last_line = line
@@ -71,7 +73,7 @@ class FFMPEG:
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
         shutil.move(out_file, image)
 
-    def mux_slideshow(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
+    def mux_slideshow_with_webcam(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
         if os.path.isfile(out_file):
             return
         self.pp.run_ffmpeg_multiple_files(
@@ -79,16 +81,33 @@ class FFMPEG:
             out_file,
             [
                 "-filter_complex",
-                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS [ovrl];[1:v] setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
+                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS,format=rgba,colorchannelmixer=aa=0.7 [ovrl];[1:v] setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
                 % (webcam_w, webcam_h),
-                '-pix_fmt',
-                'yuv420p',
                 '-c:a',
                 'copy',
                 '-crf',
                 '24',
                 '-vsync',
                 '0',
+            ],
+        )
+
+    def mux_slideshow(self, video_file, webcam_file, out_file):
+        if os.path.isfile(out_file):
+            return
+        self.pp.run_ffmpeg_multiple_files(
+            [webcam_file, video_file],
+            out_file,
+            [
+                '-map',
+                '0:a',
+                '-c:a',
+                'copy',
+                '-map',
+                '1:v',
+                '-c:v',
+                'copy',
+                '-shortest',
             ],
         )
 

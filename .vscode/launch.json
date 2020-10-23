@@ -9,9 +9,10 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/tests/",
             "args": [
-                "https://bbb-cluster.di.unito.it/playback/presentation/2.0/playback.html?meetingId=5d9131dc7fd145ee063f4400305e7fe018b7032c-1601622033965"
+                //"https://bbb-cluster.di.unito.it/playback/presentation/2.0/playback.html?meetingId=5d9131dc7fd145ee063f4400305e7fe018b7032c-1601622033965"
+                "https://bbb-cluster.di.unito.it/playback/presentation/2.0/playback.html?meetingId=bd788745741ab787621c0dafa69a06ef91c0f02d-1603349301553",
+                //"-nw"
             ],
-            //"https://bbb-cluster.di.unito.it/playback/presentation/2.0/playback.html?meetingId=bd788745741ab787621c0dafa69a06ef91c0f02d-1603349301553"
             "justMyCode": false
         }
     ]

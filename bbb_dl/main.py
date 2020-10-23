@@ -50,7 +50,7 @@ class BBBDL(InfoExtractor):
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
 
-    def run(self, dl_url: str):
+    def run(self, dl_url: str, without_webcam: bool):
         m_obj = self._VALID_URL_RE.match(dl_url)
 
         video_id = m_obj.group('id')
@@ -154,7 +154,11 @@ class BBBDL(InfoExtractor):
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
-        self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
+        if without_webcam:
+            self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
+
+        else:
+            self.ffmpeg.mux_slideshow_with_webcam(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
 
         self.to_screen("Cleanup")
         # self._remove_tmp_dir(video_id)
@@ -301,6 +305,13 @@ def get_parser():
     parser.add_argument('URL', type=str, help='The URL of a lesson to be downloaded.')
 
     parser.add_argument(
+        '--add_webcam',
+        '-aw',
+        action='store_false',
+        help='Use this option if you want to see the webcam in the final video.',
+    )
+
+    parser.add_argument(
         '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
     )
 
@@ -312,4 +323,4 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL().run(args.URL)
+    BBBDL().run(args.URL, args.add_webcam)
