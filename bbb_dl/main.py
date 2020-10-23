@@ -9,10 +9,7 @@ import posixpath
 import re
 import shutil
 import socket
-import zipfile
 import urllib.parse as urlparse
-
-from xml.dom import minidom
 
 import youtube_dl
 
@@ -29,21 +26,6 @@ from youtube_dl.extractor.common import InfoExtractor
 import bbb_dl.ffmpeg as ffmpeg
 
 from bbb_dl.version import __version__
-
-meetingId = 'something-somotherthing'
-
-PATH = '/var/bigbluebutton/published/presentation/'
-LOGS = '/var/log/bigbluebutton/download/'
-source_dir = PATH + meetingId + "/"
-temp_dir = source_dir + 'temp/'
-target_dir = source_dir + 'download/'
-audio_path = 'audio/'
-events_file = 'shapes.svg'
-LOGFILE = LOGS + meetingId + '.log'
-source_events = '/var/bigbluebutton/recording/raw/' + meetingId + '/events.xml'
-# Deskshare
-SOURCE_DESKSHARE = source_dir + 'deskshare/deskshare.webm'
-TMP_DESKSHARE_FILE = temp_dir + 'deskshare.mp4'
 
 _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
 _x = lambda p: xpath_with_ns(p, {'xlink': 'http://www.w3.org/1999/xlink'})
