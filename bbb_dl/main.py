@@ -68,38 +68,33 @@ class BBBDL(InfoExtractor):
         video_id = m_obj.group('id')
         video_website = m_obj.group('website')
 
-        # We don't parse anything, but make sure it exists
         self.to_screen("Downloading meta informations")
+        # Make sure the lesson exists
         self._download_webpage(dl_url, video_id)
+        self._create_tmp_dir(video_id)
 
-        # Extract basic metadata (more available in metadata.xml)
+        # Extract basic metadata
         metadata_url = video_website + '/presentation/' + video_id + '/metadata.xml'
         metadata = self._download_xml(metadata_url, video_id)
 
-        # --------------------  Title / Starttime  --------------------
+        shapes_url = video_website + '/presentation/' + video_id + '/shapes.svg'
+        shapes = self._download_xml(shapes_url, video_id)
+
+        # Parse metadata.xml
         meta = metadata.find('./meta')
         start_time = xpath_text(metadata, 'start_time')
         title = xpath_text(meta, 'meetingName')
 
-        # --------------------  Slides  --------------------
-        shapes_url = video_website + '/presentation/' + video_id + '/shapes.svg'
-        shapes = self._download_xml(shapes_url, video_id)
+        # Downloading Slides
         images = shapes.findall(_s("./svg:image[@class='slide']"))
         slides = []
         for image in images:
             slides.append(video_website + '/presentation/' + video_id + '/' + image.get(_x('xlink:href')))
 
-        try:
-            if not os.path.exists(video_id):
-                os.makedirs(video_id)
-        except (OSError, IOError) as err:
-            self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
-
         self.to_screen("Downloading slides")
         self._write_slides(slides, video_id, self.ydl)
 
-        # --------------------  Webcam / Deskshare  --------------------
-
+        # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
 
         webcams_success = False
@@ -132,7 +127,12 @@ class BBBDL(InfoExtractor):
         except DownloadError:
             pass
 
-        pass
+    def _create_tmp_dir(self, video_id):
+        try:
+            if not os.path.exists(video_id):
+                os.makedirs(video_id)
+        except (OSError, IOError) as err:
+            self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
 
     def _write_slides(self, slides: [], path: str, ydl: YoutubeDL):
 
