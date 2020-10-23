@@ -42,10 +42,18 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
         if self._downloader.params.get('verbose', False):
             self._downloader.to_screen('[debug] ffmpeg command line: %s' % shell_quote(cmd))
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        stdout, stderr = p.communicate()
+
+        last_line = ''
+        for line in p.stderr:
+            line = line.decode('utf-8', 'replace')
+            if line.find('time=') > 0:
+                print('\033[K' + line.replace('\n', '') + '\r', end='')
+            last_line = line
+        print('')
+
+        std_out, std_err = p.communicate()
         if p.returncode != 0:
-            stderr = stderr.decode('utf-8', 'replace')
-            msg = stderr.strip().split('\n')[-1]
+            msg = last_line.strip().split('\n')[-1]
             raise FFmpegPostProcessorError(msg)
         self.try_utime(out_path, oldest_mtime, oldest_mtime)
 
@@ -76,6 +84,10 @@ class FFMPEG:
                 'yuv420p',
                 '-c:a',
                 'copy',
+                '-crf',
+                '24',
+                '-vsync',
+                '0',
             ],
         )
 

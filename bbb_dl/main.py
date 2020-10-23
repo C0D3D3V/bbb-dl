@@ -277,11 +277,11 @@ class BBBDL(InfoExtractor):
             out_ts_file = video_id + '/' + tmp_ts_name
 
             if "deskshare.png" in image:
-                self.to_screen("Trimming Deskshare at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
+                self.to_screen("Trimming deskshare at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
                 self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, time_mark, duration, out_file)
                 self.ffmpeg.mp4_to_ts(out_file, out_ts_file)
             else:
-                self.to_screen("Trimming Slide at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
+                self.to_screen("Trimming slide at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
                 self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
             vl_file.write("file " + tmp_ts_name + "\n")
