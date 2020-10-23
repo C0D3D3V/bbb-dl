@@ -79,7 +79,8 @@ class FFMPEG:
             out_file,
             [
                 "-filter_complex",
-                "[0:v]scale=%s:%s [ovrl], [1:v][ovrl] overlay=W-w:H-h:shortest=1" % (webcam_w, webcam_h),
+                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS [ovrl];[1:v] setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
+                % (webcam_w, webcam_h),
                 '-pix_fmt',
                 'yuv420p',
                 '-c:a',
