@@ -42,7 +42,7 @@ class BBBDL(InfoExtractor):
 
         self.ydl = youtube_dl.YoutubeDL()
         self.set_downloader(self.ydl)
-        self.ffmpeg = FFMPEG
+        self.ffmpeg = FFMPEG(self.ydl)
 
     def run(self, dl_url: str):
         m_obj = self._VALID_URL_RE.match(dl_url)
