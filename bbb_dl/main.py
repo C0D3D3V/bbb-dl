@@ -23,12 +23,7 @@ from youtube_dl.compat import (
     compat_http_client,
     compat_urllib_error,
 )
-from youtube_dl.utils import (
-    xpath_text,
-    xpath_with_ns,
-    encodeFilename,
-    error_to_compat_str,
-)
+from youtube_dl.utils import xpath_text, xpath_with_ns, encodeFilename, error_to_compat_str, DownloadError
 
 from youtube_dl.extractor.common import InfoExtractor
 
@@ -116,7 +111,7 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = '%(id)s/webcams.webm'
             self.ydl.process_ie_result(webcams_dl)
             webcams_success = True
-        except Exception:
+        except DownloadError:
             pass
 
         deskshare_success = False
@@ -130,7 +125,7 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = '%(id)s/deskshare.webm'
             self.ydl.process_ie_result(deskshare_dl)
             deskshare_success = True
-        except Exception:
+        except DownloadError:
             pass
 
         pass
