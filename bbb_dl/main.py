@@ -168,6 +168,14 @@ class BBBDL(InfoExtractor):
         except (OSError, IOError) as err:
             self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
 
+    def _remove_tmp_dir(self, video_id):
+        try:
+
+            if os.path.exists(video_id):
+                shutil.rmtree(video_id)
+        except (OSError, IOError) as err:
+            self.ydl.report_error('unable to remove directory ' + error_to_compat_str(err))
+
     @staticmethod
     def determine_filename(url: str):
         url_parsed = urlparse.urlparse(url)
@@ -267,53 +275,7 @@ def create_slideshow(dictionary, length, result, bbb_version):
     os.remove(video_list)
 
 
-def get_presentation_dims(presentation_name):
-    doc = minidom.parse(events_file)
-    images = doc.getElementsByTagName('image')
-
-    for el in images:
-        name = el.getAttribute('xlink:href')
-        pattern = presentation_name
-        if re.search(pattern, name):
-            height = int(el.getAttribute('height'))
-            width = int(el.getAttribute('width'))
-            return height, width
-
-
-def prepare(bbb_version):
-    check_presentation_dims(dictionary, dims)
-
-
-def cleanup():
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-
-    if os.path.exists(target_dir):
-        shutil.rmtree(target_dir)
-
-
-def serve_webcams():
-    if os.path.exists('video/webcams.webm'):
-        shutil.copy2('video/webcams.webm', './download/')
-
-
-def copy_mp4(result, dest):
-    if os.path.exists(result):
-        shutil.copy2(result, dest)
-
-
-def zipdir(path):
-    filename = meetingId + '.zip'
-    zipf = zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED)
-    for root, dirs, files in os.walk(path):
-        for f in files:
-            zipf.write(os.path.join(root, f))
-    zipf.close()
-
-
 def run_download():
-
-    # dictionary, length, dims = prepare(bbb_version)
 
     audio = audio_path + 'audio.ogg'
     audio_trimmed = temp_dir + 'audio_trimmed.m4a'
@@ -324,12 +286,7 @@ def run_download():
         create_slideshow(dictionary, length, slideshow, bbb_version)
         ffmpeg.trim_audio_start(dictionary, length, audio, audio_trimmed)
         ffmpeg.mux_slideshow_audio(slideshow, audio_trimmed, result)
-        serve_webcams()
-        # zipdir('./download/')
-        copy_mp4(result, source_dir + meetingId + '.mp4')
     finally:
-        print("Cleaning up temp files...")
-        cleanup()
         print("Done")
 
 
