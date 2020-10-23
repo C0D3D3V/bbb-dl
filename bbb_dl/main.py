@@ -112,12 +112,10 @@ class BBBDL(InfoExtractor):
 
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
-        self._rescale_slides(slides_infos)
 
         # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
 
-        webcams_success = False
         webcams_path = video_id + '/webcams.webm'
         try:
             self.to_screen("Downloading webcams.webm")
@@ -129,11 +127,9 @@ class BBBDL(InfoExtractor):
             }
             self.ydl.params['outtmpl'] = webcams_path
             self.ydl.process_ie_result(webcams_dl)
-            webcams_success = True
         except DownloadError:
             pass
 
-        deskshare_success = False
         deskshare_path = video_id + '/deskshare.webm'
         try:
             self.to_screen("Downloading deskshare.webm")
@@ -145,26 +141,19 @@ class BBBDL(InfoExtractor):
             }
             self.ydl.params['outtmpl'] = deskshare_path
             self.ydl.process_ie_result(deskshare_dl)
-            deskshare_success = True
         except DownloadError:
             pass
 
         # Post processing
-        audio_path = video_id + '/audio.ogg'
-        self.to_screen("Extract Audio")
-        self.ffmpeg.extract_audio_from_video(webcams_path, audio_path)
-
+        self._rescale_slides(slides_infos)
+        
         slideshow_path = self._create_slideshow(
             slides_timemarks, slides_infos, slides_endmark, deskshare_path, video_id
         )
 
-        audio_trimmed_path = video_id + '/audio.m4a'
-        self.to_screen("Trim Audio")
-        self.ffmpeg.trim_audio_start(slides_timemarks, slides_endmark, audio_path, audio_trimmed_path)
-
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
-        self.ffmpeg.mux_slideshow_audio(slideshow_path, audio_trimmed_path, result_path)
+        self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
 
         self.to_screen("Cleanup")
         # self._remove_tmp_dir(video_id)
