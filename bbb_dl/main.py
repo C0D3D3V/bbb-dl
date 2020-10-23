@@ -5,11 +5,9 @@
 
 import argparse
 import os
-import posixpath
 import re
 import shutil
 import socket
-import urllib.parse as urlparse
 
 import youtube_dl
 
@@ -47,7 +45,7 @@ class BBBDL(InfoExtractor):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
-        ydl_options = {}  # "verbose": True
+        ydl_options = {"verbose": True}
         self.ydl = youtube_dl.YoutubeDL(ydl_options)
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
@@ -272,11 +270,11 @@ class BBBDL(InfoExtractor):
             out_ts_file = video_id + '/' + tmp_ts_name
 
             if "deskshare.png" in image:
-                self.to_screen("Trimming Deskshare at time stamp %s (Duration: %.2f)" % (time_mark, duration))
+                self.to_screen("Trimming Deskshare at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
                 self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, time_mark, duration, out_file)
                 self.ffmpeg.mp4_to_ts(out_file, out_ts_file)
             else:
-                self.to_screen("Trimming Slide at time stamp %s (Duration: %.2f)" % (time_mark, duration))
+                self.to_screen("Trimming Slide at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
                 self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
 
             vl_file.write("file " + tmp_ts_name + "\n")

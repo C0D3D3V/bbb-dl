@@ -83,20 +83,20 @@ class FFMPEG:
             image,
             out_file,
             [
-                "-loop",
-                "1",
                 "-r",
                 "5",
-                "-f",
-                "image2",
                 "-c:v",
                 "libx264",
                 "-t",
                 str(duration),
                 "-pix_fmt",
                 "yuv420p",
-                "-vf",
-                "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            ],
+            [
+                "-loop",
+                "1",
+                "-f",
+                "image2",
             ],
         )
 
