@@ -161,7 +161,7 @@ class BBBDL(InfoExtractor):
             self.ffmpeg.mux_slideshow_with_webcam(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
 
         self.to_screen("Cleanup")
-        # self._remove_tmp_dir(video_id)
+        self._remove_tmp_dir(video_id)
 
     def _create_tmp_dir(self, video_id):
         try:
