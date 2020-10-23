@@ -83,20 +83,24 @@ class FFMPEG:
             image,
             out_file,
             [
-                "-r",
-                "5",
                 "-c:v",
                 "libx264",
                 "-t",
                 str(duration),
                 "-pix_fmt",
                 "yuv420p",
+                "-preset",
+                "veryfast",
             ],
             [
                 "-loop",
                 "1",
                 "-f",
                 "image2",
+                "-framerate",
+                "1",
+                "-r",
+                "1",
             ],
         )
 
@@ -147,7 +151,10 @@ class FFMPEG:
         self.pp.run_ffmpeg(audio_file, temp_file, ["-ss", str1, "-t", str2])
 
         self.mp3_to_aac(temp_file, out_file)
-        os.remove(temp_file)
+        try:
+            os.remove(temp_file)
+        except OSError:
+            pass
 
     def mp3_to_aac(self, mp3_file, aac_file):
         self.pp.run_ffmpeg(mp3_file, aac_file, ["-c:a", "aac"])
