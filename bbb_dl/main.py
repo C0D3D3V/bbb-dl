@@ -145,15 +145,16 @@ class BBBDL(InfoExtractor):
             pass
 
         # Post processing
-        self._rescale_slides(slides_infos)
-        
+        slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
+
         slideshow_path = self._create_slideshow(
             slides_timemarks, slides_infos, slides_endmark, deskshare_path, video_id
         )
 
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
-        self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
+        webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
+        self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
 
         self.to_screen("Cleanup")
         # self._remove_tmp_dir(video_id)
@@ -193,38 +194,55 @@ class BBBDL(InfoExtractor):
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
                     self.report_warning('Unable to download slide "%s": %s' % (slide_url, error_to_compat_str(err)))
 
+    def _get_webcam_size(self, slideshow_w, slideshow_h):
+
+        webcam_w = slideshow_w // 5
+        webcam_h = webcam_w * 3 // 4
+
+        if webcam_h > slideshow_h:
+            webcam_h = slideshow_h
+
+        if webcam_w % 2:
+            webcam_w -= 1
+
+        if webcam_h % 2:
+            webcam_h -= 1
+
+        return webcam_w, webcam_h
+
     def _rescale_slides(self, slides_infos: {}):
-        heights = []
         widths = []
+        heights = []
 
         for slide_id in slides_infos:
             slide = slides_infos[slide_id]
-            heights.append(slide.get('h'))
             widths.append(slide.get('w'))
+            heights.append(slide.get('h'))
 
-        if len(heights) == 0 or len(widths) == 0:
+        if len(widths) == 0 or len(heights) == 0:
             return
 
-        new_height = max(heights)
         new_width = max(widths)
+        new_height = max(heights)
 
-        if new_height % 2:
-            new_height += 1
         if new_width % 2:
             new_width += 1
+        if new_height % 2:
+            new_height += 1
 
         for slide_id in slides_infos:
             slide_info = slides_infos[slide_id]
-            slide_h = slide_info.get('h')
             slide_w = slide_info.get('w')
+            slide_h = slide_info.get('h')
             slide_name = slide_info.get('filename')
             slide_path = slide_info.get('filepath')
 
-            if new_height == slide_h and new_width == slide_w:
+            if new_width == slide_w and new_height == slide_h:
                 continue
 
             self.to_screen('Rescale %s' % (slide_name,))
-            self.ffmpeg.rescale_image(slide_path, new_height, new_width)
+            self.ffmpeg.rescale_image(slide_path, new_width, new_height)
+        return new_width, new_height
 
     def _create_slideshow(
         self, slides_timemarks: {}, slides_infos: {}, slides_endmark: int, deskshare_path: str, video_id: str

@@ -63,15 +63,15 @@ class FFMPEG:
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
         shutil.move(out_file, image)
 
-    def mux_slideshow(self, video_file, webcam_file, out_file):
+    def mux_slideshow(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
         if os.path.isfile(out_file):
             return
         self.pp.run_ffmpeg_multiple_files(
-            [video_file, webcam_file],
+            [webcam_file, video_file],
             out_file,
             [
                 "-filter_complex",
-                "[1:v]scale=320:240 [ovrl], [0:v][ovrl] overlay=W-w:H-h:shortest=1",
+                "[0:v]scale=%s:%s [ovrl], [1:v][ovrl] overlay=W-w:H-h:shortest=1" % (webcam_w, webcam_h),
                 '-pix_fmt',
                 'yuv420p',
                 '-c:a',
