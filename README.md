@@ -19,4 +19,4 @@ Adding the webcam to the video takes longer, so you can leave it out:
 
 
 ### Notes
-This project is based on the work of [CreateWebinar.com](https://github.com/createwebinar/bbb-download) and [Olivier Berger](https://github.com/ytdl-org/youtube-dl/pull/25092)
+This project is based on the work of [CreateWebinar.com](https://github.com/createwebinar/bbb-download), [Stefan Wallentowitz](https://github.com/wallento/bbb-scrape) and [Olivier Berger](https://github.com/ytdl-org/youtube-dl/pull/25092)

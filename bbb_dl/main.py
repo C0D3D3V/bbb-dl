@@ -50,7 +50,7 @@ class Slide:
         ts_out: float,
         duration: float,
     ):
-        self.id = img_id
+        self.img_id = img_id
         self.url = url
         self.filename = filename
         self.path = path
@@ -293,11 +293,11 @@ class BBBDL(InfoExtractor):
 
         self.to_screen("Create slideshow")
         for i, slide in enumerate(slides_infos):
-            tmp_ts_name = '%d.ts' % i
+            tmp_ts_name = '{:04d}.ts'.format(i)
             out_ts_file = video_id + '/' + tmp_ts_name
 
             if "deskshare.png" in slide.url:
-                trimmed_out_file = video_id + '/%d.mp4' % i
+                trimmed_out_file = video_id + '/{:04d}.mp4'.format(i)
                 self.to_screen(
                     "Trimming deskshare %s at time stamp %ss (Duration: %.2fs)" % (i, slide.ts_in, slide.duration)
                 )
