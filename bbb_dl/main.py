@@ -298,14 +298,21 @@ class BBBDL(InfoExtractor):
         return slideshow_path
 
     def convert_svg_to_png(self, svg_bytes, width, height, output_path):
-        PNGSurface.convert(bytestring=svg_bytes, width=width, height=height, write_to=open(output_path, 'wb'))
+        PNGSurface.convert(
+            bytestring=svg_bytes,
+            width=width,
+            height=height,
+            write_to=open(output_path, 'wb'),
+        )
 
 
 def get_parser():
     """
     Creates a new argument parser.
     """
-    parser = argparse.ArgumentParser(description=('BBB Downloader that downloads a BBB lesson as an MP4 video'))
+    parser = argparse.ArgumentParser(
+        description=('Big Blue Button Downloader that downloads a BBB lesson as MP4 video')
+    )
 
     parser.add_argument('URL', type=str, help='The URL of a lesson to be downloaded.')
 

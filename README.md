@@ -1,6 +1,6 @@
-# BBB Downloader
+# Big Blue Button (BBB) Downloader
 
-Downloads a BBB lesson as a MP4 video, including presentation, audio, webcam and screenshare.
+Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and screenshare.
 
 ### Setup
 1. Install [Python](https://www.python.org/) >=3.7

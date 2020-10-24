@@ -14,7 +14,7 @@ def readme():
 setup(
     name='bbb-dl',
     version=__version__,
-    description='BBB Downloader that downloads a BBB lesson as an MP4 video',
+    description='Big Blue Button Downloader that downloads a BBB lesson as MP4 video',
     long_description=readme(),
     long_description_content_type='text/markdown',
     url='https://github.com/C0D3D3V/bbb-dl',
