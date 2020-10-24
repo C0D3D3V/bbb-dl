@@ -28,7 +28,10 @@ setup(
         ],
     },
     python_requires='>=3.6',
-    install_requires=[],
+    install_requires=[
+        'cairosvg',
+        'youtube_dl',
+    ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: End Users/Desktop',

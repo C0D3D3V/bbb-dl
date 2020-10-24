@@ -13,6 +13,7 @@ import youtube_dl
 
 from youtube_dl import YoutubeDL
 
+from cairosvg.surface import PNGSurface
 from youtube_dl.compat import (
     compat_http_client,
     compat_urllib_error,
@@ -295,6 +296,9 @@ class BBBDL(InfoExtractor):
         self.to_screen("Concat Slideshow")
         self.ffmpeg.concat_videos(video_list, slideshow_path)
         return slideshow_path
+
+    def convert_svg_to_png(self, svg_bytes, width, height, output_path):
+        PNGSurface.convert(bytestring=svg_bytes, width=width, height=height, write_to=open(output_path, 'wb'))
 
 
 def get_parser():
