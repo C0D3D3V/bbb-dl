@@ -9,6 +9,8 @@ import re
 import shutil
 import socket
 
+from collections import namedtuple
+
 import youtube_dl
 
 from youtube_dl import YoutubeDL
@@ -36,17 +38,24 @@ from bbb_dl.version import __version__
 _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
 _x = lambda p: xpath_with_ns(p, {'xlink': 'http://www.w3.org/1999/xlink'})
 
+Slide = namedtuple("Slide", ["id", "url", "filename", "path", "width", "height", "ts_in", "ts_out", "duration"])
+
 
 class BBBDL(InfoExtractor):
     _VALID_URL = (
         r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
     )
 
-    def __init__(self):
+    def __init__(self, verbose: bool):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
-        ydl_options = {"verbose": True}
+        if verbose:
+            ydl_options = {"verbose": True}
+        else:
+            ydl_options = {}
+
+        self.verbose = verbose
         self.ydl = youtube_dl.YoutubeDL(ydl_options)
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
@@ -78,38 +87,41 @@ class BBBDL(InfoExtractor):
 
         # Downloading Slides
         images = shapes.findall(_s("./svg:image[@class='slide']"))
-        fist_img = True
-        slides_endmark = 0
-        slides_timemarks = {}
-        slides_infos = {}
+        slides_infos = []
+        img_path_to_filename = {}
         counter = 0
         for image in images:
             img_path = image.get(_x('xlink:href'))
 
-            if fist_img and '2.0.0' > bbb_version:
-                continue
-            fist_img = False
+            image_id = image.get('id')
+            image_url = video_website + '/presentation/' + video_id + '/' + img_path
+            image_width = int(image.get('width'))
+            image_height = int(image.get('height'))
 
-            in_times = image.get('in').split(' ')
-            out_times = image.get('out').split(' ')
-
-            if img_path not in slides_infos:
+            if img_path not in img_path_to_filename:
                 slide_filename = 'slide-' + str(counter) + '.' + determine_ext(img_path)
-                slides_infos[img_path] = {
-                    'h': int(image.get('height')),
-                    'w': int(image.get('width')),
-                    'url': video_website + '/presentation/' + video_id + '/' + img_path,
-                    'filename': slide_filename,
-                    'filepath': video_id + '/' + slide_filename,
-                }
+                img_path_to_filename[img_path] = slide_filename
                 counter += 1
+            else:
+                slide_filename = img_path_to_filename[img_path]
 
-            temp = float(out_times[len(out_times) - 1])
-            if temp > slides_endmark:
-                slides_endmark = temp
+            slide_path = video_id + '/' + slide_filename
+            slide_ts_in = float(image.get('in'))
+            slide_ts_out = float(image.get('out'))
 
-            for in_time in in_times:
-                slides_timemarks[float(in_time)] = img_path
+            slides_infos.append(
+                Slide(
+                    image_id,
+                    image_url,
+                    slide_filename,
+                    slide_path,
+                    image_width,
+                    image_height,
+                    slide_ts_in,
+                    slide_ts_out,
+                    max(0, slide_ts_out - slide_ts_in),
+                )
+            )
 
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
@@ -148,9 +160,7 @@ class BBBDL(InfoExtractor):
         # Post processing
         slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
 
-        slideshow_path = self._create_slideshow(
-            slides_timemarks, slides_infos, slides_endmark, deskshare_path, video_id
-        )
+        slideshow_path = self._create_slideshow(slides_infos, deskshare_path, video_id)
 
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
@@ -181,27 +191,20 @@ class BBBDL(InfoExtractor):
             self.ydl.report_error('unable to remove directory ' + error_to_compat_str(err))
 
     def _write_slides(self, slides_infos: {}, ydl: YoutubeDL):
-
-        for slide_id in slides_infos:
-            slide = slides_infos[slide_id]
-            slide_url = slide.get('url')
-            slide_filename = slide.get('filename')
-            download_path = slide.get('filepath')
-
-            if os.path.exists(encodeFilename(download_path)):
-                self.to_screen('Slide %s is already present' % (slide_filename))
+        for slide in slides_infos:
+            if os.path.exists(encodeFilename(slide.path)):
+                self.to_screen('Slide %s is already present' % (slide.filename))
             else:
-                self.to_screen('Downloading slide %s...' % (slide_filename))
+                self.to_screen('Downloading slide %s...' % (slide.filename))
                 try:
-                    uf = ydl.urlopen(slide_url)
-                    with open(encodeFilename(download_path), 'wb') as thumbf:
-                        shutil.copyfileobj(uf, thumbf)
-                    self.to_screen('Writing slide %s to: %s' % (slide_filename, download_path))
+                    url_f = ydl.urlopen(slide.url)
+                    with open(encodeFilename(slide.path), 'wb') as slide_f:
+                        shutil.copyfileobj(url_f, slide_f)
+                    self.to_screen('Successfully downloaded to: %s' % (slide.path))
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
-                    self.report_warning('Unable to download slide "%s": %s' % (slide_url, error_to_compat_str(err)))
+                    self.report_warning('Unable to download slide "%s": %s' % (slide.url, error_to_compat_str(err)))
 
     def _get_webcam_size(self, slideshow_w, slideshow_h):
-
         webcam_w = slideshow_w // 5
         webcam_h = webcam_w * 3 // 4
 
@@ -220,10 +223,9 @@ class BBBDL(InfoExtractor):
         widths = []
         heights = []
 
-        for slide_id in slides_infos:
-            slide = slides_infos[slide_id]
-            widths.append(slide.get('w'))
-            heights.append(slide.get('h'))
+        for slide in slides_infos:
+            widths.append(slide.width)
+            heights.append(slide.height)
 
         if len(widths) == 0 or len(heights) == 0:
             return
@@ -236,30 +238,19 @@ class BBBDL(InfoExtractor):
         if new_height % 2:
             new_height += 1
 
-        for slide_id in slides_infos:
-            slide_info = slides_infos[slide_id]
-            slide_w = slide_info.get('w')
-            slide_h = slide_info.get('h')
-            slide_name = slide_info.get('filename')
-            slide_path = slide_info.get('filepath')
-
-            if new_width == slide_w and new_height == slide_h:
+        for slide in slides_infos:
+            if new_width == slide.width and new_height == slide.height:
                 continue
 
-            self.to_screen('Rescale %s' % (slide_name,))
-            self.ffmpeg.rescale_image(slide_path, new_width, new_height)
+            self.to_screen('Rescale %s' % (slide.filename,))
+            self.ffmpeg.rescale_image(slide.path, new_width, new_height)
         return new_width, new_height
 
-    def _create_slideshow(
-        self, slides_timemarks: {}, slides_infos: {}, slides_endmark: int, deskshare_path: str, video_id: str
-    ):
+    def _create_slideshow(self, slides_infos: {}, deskshare_path: str, video_id: str):
         slideshow_path = video_id + '/slideshow.mp4'
 
         video_list = video_id + '/video_list.txt'
         vl_file = open(video_list, 'w')
-
-        times = list(slides_timemarks.keys())
-        times.sort()
 
         deskshare_mp4_path = video_id + '/deskshare.mp4'
         if os.path.exists(deskshare_path):
@@ -267,28 +258,18 @@ class BBBDL(InfoExtractor):
             self.ffmpeg.webm_to_mp4(deskshare_path, deskshare_mp4_path)
 
         self.to_screen("Create slideshow")
-        for i, time_mark in enumerate(times):
-
-            tmp_name = '%d.mp4' % i
+        for i, slide in enumerate(slides_infos):
             tmp_ts_name = '%d.ts' % i
-            slide = slides_infos.get(slides_timemarks[time_mark])
-            image = slide.get('filepath')
-
-            if i == len(times) - 1:
-                duration = slides_endmark - time_mark
-            else:
-                duration = times[i + 1] - time_mark
-
-            out_file = video_id + '/' + tmp_name
             out_ts_file = video_id + '/' + tmp_ts_name
 
-            if "deskshare.png" in image:
-                self.to_screen("Trimming deskshare at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
-                self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, time_mark, duration, out_file)
-                self.ffmpeg.mp4_to_ts(out_file, out_ts_file)
+            if "deskshare.png" in slide.url:
+                trimmed_out_file = video_id + '/%d.mp4' % i
+                self.to_screen("Trimming deskshare at time stamp %ss (Duration: %.2fs)" % (slide.ts_in, slide.duration))
+                self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, slide.ts_in, slide.duration, trimmed_out_file)
+                self.ffmpeg.mp4_to_ts(trimmed_out_file, out_ts_file)
             else:
-                self.to_screen("Trimming slide at time stamp %ss (Duration: %.2fs)" % (time_mark, duration))
-                self.ffmpeg.create_video_from_image(image, duration, out_ts_file)
+                self.to_screen("Trimming slide at time stamp %ss (Duration: %.2fs)" % (slide.ts_in, slide.duration))
+                self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
 
             vl_file.write("file " + tmp_ts_name + "\n")
         vl_file.close()
@@ -317,7 +298,7 @@ def get_parser():
     parser.add_argument('URL', type=str, help='The URL of a lesson to be downloaded.')
 
     parser.add_argument(
-        '--add_webcam',
+        '--add-webcam',
         '-aw',
         action='store_false',
         help='Use this option if you want to see the webcam in the final video.',
@@ -334,6 +315,13 @@ def get_parser():
     )
 
     parser.add_argument(
+        '--verbose',
+        '-v',
+        action='store_true',
+        help=('To print more verbose debug information'),
+    )
+
+    parser.add_argument(
         '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
     )
 
@@ -345,4 +333,4 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL().run(args.URL, args.add_webcam, args.keep_tmp_files)
+    BBBDL(args.verbose).run(args.URL, args.add_webcam, args.keep_tmp_files)

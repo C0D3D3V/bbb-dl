@@ -76,12 +76,13 @@ class FFMPEG:
     def mux_slideshow_with_webcam(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
         if os.path.isfile(out_file):
             return
+        # we could add transparent to webcam with ", format=rgba,colorchannelmixer=aa=0.7"
         self.pp.run_ffmpeg_multiple_files(
             [webcam_file, video_file],
             out_file,
             [
                 "-filter_complex",
-                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS,format=rgba,colorchannelmixer=aa=0.7 [ovrl];[1:v] fps=24,setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
+                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS [ovrl];[1:v] fps=24,setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
                 % (webcam_w, webcam_h),
                 '-c:a',
                 'copy',
@@ -91,6 +92,8 @@ class FFMPEG:
                 '0',
                 '-r',
                 '24',
+                "-preset",
+                "veryfast",
             ],
         )
 

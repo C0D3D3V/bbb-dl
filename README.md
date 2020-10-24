@@ -11,7 +11,7 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 
 To download a lesson with webcam use: 
 
-`bbb-dl -aw https://bbb-uni.com/playback/path/to/your/video`
+`bbb-dl --add-webcam https://bbb-uni.com/playback/path/to/your/video`
 
 Adding the webcam to the video takes longer, so you can leave it out:
 
