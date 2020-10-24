@@ -9,8 +9,6 @@ import re
 import shutil
 import socket
 
-from collections import namedtuple
-
 import youtube_dl
 
 from youtube_dl import YoutubeDL
@@ -38,7 +36,29 @@ from bbb_dl.version import __version__
 _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
 _x = lambda p: xpath_with_ns(p, {'xlink': 'http://www.w3.org/1999/xlink'})
 
-Slide = namedtuple("Slide", ["id", "url", "filename", "path", "width", "height", "ts_in", "ts_out", "duration"])
+
+class Slide:
+    def __init__(
+        self,
+        img_id: str,
+        url: str,
+        filename: str,
+        path: str,
+        width: int,
+        height: int,
+        ts_in: float,
+        ts_out: float,
+        duration: float,
+    ):
+        self.id = img_id
+        self.url = url
+        self.filename = filename
+        self.path = path
+        self.width = width
+        self.height = height
+        self.ts_in = ts_in
+        self.ts_out = ts_out
+        self.duration = duration
 
 
 class BBBDL(InfoExtractor):
@@ -99,7 +119,7 @@ class BBBDL(InfoExtractor):
             image_height = int(image.get('height'))
 
             if img_path not in img_path_to_filename:
-                slide_filename = 'slide-' + str(counter) + '.' + determine_ext(img_path)
+                slide_filename = 'slide-{:03d}'.format(counter) + '.' + determine_ext(img_path)
                 img_path_to_filename[img_path] = slide_filename
                 counter += 1
             else:
@@ -242,8 +262,17 @@ class BBBDL(InfoExtractor):
             if new_width == slide.width and new_height == slide.height:
                 continue
 
-            self.to_screen('Rescale %s' % (slide.filename,))
-            self.ffmpeg.rescale_image(slide.path, new_width, new_height)
+            old_path_parts = slide.path.split('.')
+            old_filename_parts = slide.filename.split('.')
+            rescaled_path = old_path_parts[0] + '_scaled.' + old_path_parts[1]
+            rescaled_filename = old_filename_parts[0] + '_scaled.' + old_filename_parts[1]
+
+            if not os.path.isfile(rescaled_path):
+                self.to_screen('Rescale %s' % (slide.filename,))
+                self.ffmpeg.rescale_image(slide.path, rescaled_path, new_width, new_height)
+
+            slide.path = rescaled_path
+            slide.filename = rescaled_filename
         return new_width, new_height
 
     def _create_slideshow(self, slides_infos: {}, deskshare_path: str, video_id: str):

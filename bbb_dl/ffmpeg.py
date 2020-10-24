@@ -2,7 +2,6 @@
 # Original author: CreateWebinar.com
 
 import os
-import shutil
 import subprocess
 
 from youtube_dl import YoutubeDL
@@ -68,10 +67,8 @@ class FFMPEG:
         self.pp = MyFFmpegPostProcessor(ydl)
         self.pp.check_version()
 
-    def rescale_image(self, image, height, width):
-        out_file = image + "-new.png"
+    def rescale_image(self, image, out_file, height, width):
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
-        shutil.move(out_file, image)
 
     def mux_slideshow_with_webcam(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
         if os.path.isfile(out_file):
