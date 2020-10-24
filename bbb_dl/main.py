@@ -185,6 +185,11 @@ class BBBDL(InfoExtractor):
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
+
+        if os.path.isfile(result_path):
+            self.report_warning("Final Slideshow already exists. Abort!")
+            return
+
         if without_webcam:
             self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
 
