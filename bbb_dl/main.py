@@ -298,11 +298,15 @@ class BBBDL(InfoExtractor):
 
             if "deskshare.png" in slide.url:
                 trimmed_out_file = video_id + '/%d.mp4' % i
-                self.to_screen("Trimming deskshare at time stamp %ss (Duration: %.2fs)" % (slide.ts_in, slide.duration))
+                self.to_screen(
+                    "Trimming deskshare %s at time stamp %ss (Duration: %.2fs)" % (i, slide.ts_in, slide.duration)
+                )
                 self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, slide.ts_in, slide.duration, trimmed_out_file)
                 self.ffmpeg.mp4_to_ts(trimmed_out_file, out_ts_file)
             else:
-                self.to_screen("Trimming slide at time stamp %ss (Duration: %.2fs)" % (slide.ts_in, slide.duration))
+                self.to_screen(
+                    "Trimming slide %s at time stamp %ss (Duration: %.2fs)" % (i, slide.ts_in, slide.duration)
+                )
                 self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
 
             vl_file.write("file " + tmp_ts_name + "\n")
