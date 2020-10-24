@@ -1,6 +1,7 @@
 # Python script that downloads a lessen video from a published bbb recording.
 
-# original authors: CreateWebinar.com <support@createwebinar.com>
+# original authors: CreateWebinar.com <support@createwebinar.com>,
+#                   Stefan Wallentowitz <stefan@wallentowitz.de>
 #                   and Olivier Berger <olivier.berger@telecom-sudparis.eu>
 
 import argparse
@@ -8,6 +9,8 @@ import os
 import re
 import shutil
 import socket
+
+from xml.etree import ElementTree
 
 import youtube_dl
 
@@ -28,6 +31,7 @@ from youtube_dl.utils import (
 )
 
 from youtube_dl.extractor.common import InfoExtractor
+from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessorError
 
 from bbb_dl.ffmpeg import FFMPEG
 
@@ -49,6 +53,7 @@ class Slide:
         ts_in: float,
         ts_out: float,
         duration: float,
+        annotations: ElementTree.Element = None,
     ):
         self.img_id = img_id
         self.url = url
@@ -59,6 +64,7 @@ class Slide:
         self.ts_in = ts_in
         self.ts_out = ts_out
         self.duration = duration
+        self.annotations = annotations
 
 
 class BBBDL(InfoExtractor):
@@ -117,6 +123,7 @@ class BBBDL(InfoExtractor):
             image_url = video_website + '/presentation/' + video_id + '/' + img_path
             image_width = int(image.get('width'))
             image_height = int(image.get('height'))
+            slide_annotations = shapes.find(_s("./svg:g[@image='{}']".format(image_id)))
 
             if img_path not in img_path_to_filename:
                 slide_filename = 'slide-{:03d}'.format(counter) + '.' + determine_ext(img_path)
@@ -140,11 +147,13 @@ class BBBDL(InfoExtractor):
                     slide_ts_in,
                     slide_ts_out,
                     max(0, slide_ts_out - slide_ts_in),
+                    slide_annotations,
                 )
             )
 
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
+        slides_infos = self._add_annotations(slides_infos)
 
         # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
@@ -229,6 +238,107 @@ class BBBDL(InfoExtractor):
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
                     self.report_warning('Unable to download slide "%s": %s' % (slide.url, error_to_compat_str(err)))
 
+    def _add_annotations(self, slides_infos: []):
+        """Expandes the slides_infos with all annotation slides"""
+
+        # convert_svg_to_png
+        result_list = []
+
+        for slide in slides_infos:
+            if slide.annotations is None:
+                result_list.append(slide)
+            else:
+                annotation_slides = []
+
+                svg_root = ElementTree.Element(
+                    '{http://www.w3.org/2000/svg}svg',
+                    {
+                        'version': '1.1',
+                        'id': 'svgfile',
+                        'style': 'position:absolute',
+                        'viewBox': '0 0 {} {}'.format(slide.width, slide.height),
+                    },
+                )
+                svg_root.append(
+                    ElementTree.Element(
+                        '{http://www.w3.org/2000/svg}image',
+                        {
+                            '{http://www.w3.org/1999/xlink}href': slide.path,
+                            'width': str(slide.width),
+                            'height': str(slide.height),
+                            'x': '0',
+                            'y': '0',
+                        },
+                    )
+                )
+                real_ts_in = None
+                ignore_original_slide = False
+                draw_elements = slide.annotations.findall(_s("./svg:g[@timestamp]"))
+                for i in range(len(draw_elements)):
+                    draw_elm = draw_elements[i]
+                    ts_in = int(float(draw_elm.get('timestamp')))
+
+                    if ts_in <= int(slide.ts_in):
+                        ignore_original_slide = True
+                        ts_in = slide.ts_in
+
+                    if i == len(draw_elements) - 1:
+                        ts_out = slide.ts_out
+                        next_ts_in = None
+                    else:
+                        ts_out = next_ts_in = int(float(draw_elements[i + 1].get('timestamp')))
+
+                    # make it visible
+                    style = draw_elm.attrib["style"].split(";")
+                    style.remove("visibility:hidden")
+                    draw_elm.attrib["style"] = ";".join(style)
+
+                    svg_root.append(draw_elm)
+
+                    # if next has same timestamp, create only one
+                    if next_ts_in is not None and next_ts_in <= ts_in:
+                        if real_ts_in is None:
+                            real_ts_in = ts_in
+                        continue
+                    if real_ts_in is not None:
+                        ts_in = real_ts_in
+                        real_ts_in = None
+
+                    old_path_parts = slide.path.split('.')
+                    old_filename_parts = slide.filename.split('.')
+                    new_path = old_path_parts[0] + '_painted{:02d}.'.format(i) + old_path_parts[1]
+                    new_filename = old_filename_parts[0] + '_painted{:02d}.'.format(i) + old_filename_parts[1]
+
+                    self.to_screen(
+                        "Paint image {} with annotation {}/{}".format(slide.filename, i, len(draw_elements) - 1)
+                    )
+                    self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
+
+                    annotation_slides.append(
+                        Slide(
+                            slide.img_id,
+                            slide.url,
+                            new_filename,
+                            new_path,
+                            slide.width,
+                            slide.height,
+                            ts_in,
+                            ts_out,
+                            max(0, ts_out - ts_in),
+                        )
+                    )
+
+                if len(annotation_slides) == 0:
+                    result_list.append(slide)
+                else:
+                    if not ignore_original_slide:
+                        slide.ts_out = annotation_slides[0].ts_in
+                        slide.duration = slide.ts_out - slide.ts_in
+                        result_list.append(slide)
+                    result_list += annotation_slides
+
+        return result_list
+
     def _get_webcam_size(self, slideshow_w, slideshow_h):
         webcam_w = slideshow_w // 5
         webcam_h = webcam_w * 3 // 4
@@ -296,18 +406,30 @@ class BBBDL(InfoExtractor):
             tmp_ts_name = '{:04d}.ts'.format(i)
             out_ts_file = video_id + '/' + tmp_ts_name
 
-            if "deskshare.png" in slide.url:
-                trimmed_out_file = video_id + '/{:04d}.mp4'.format(i)
-                self.to_screen(
-                    "Trimming deskshare %s at time stamp %ss (Duration: %.2fs)" % (i, slide.ts_in, slide.duration)
-                )
-                self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, slide.ts_in, slide.duration, trimmed_out_file)
-                self.ffmpeg.mp4_to_ts(trimmed_out_file, out_ts_file)
-            else:
-                self.to_screen(
-                    "Trimming slide %s at time stamp %ss (Duration: %.2fs)" % (i, slide.ts_in, slide.duration)
-                )
-                self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
+            try:
+                if "deskshare.png" in slide.url:
+                    trimmed_out_file = video_id + '/{:04d}.mp4'.format(i)
+                    self.to_screen(
+                        "Trimming deskshare (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
+                        % (i, len(slides_infos) - 1, slide.ts_in, slide.duration)
+                    )
+                    self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, slide.ts_in, slide.duration, trimmed_out_file)
+                    self.ffmpeg.mp4_to_ts(trimmed_out_file, out_ts_file)
+                else:
+                    self.to_screen(
+                        "Trimming slide (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
+                        % (i, len(slides_infos) - 1, slide.ts_in, slide.duration)
+                    )
+                    self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
+
+            except (FFmpegPostProcessorError, KeyboardInterrupt) as e:
+                self.report_warning('Something went wrong, please try again!\nError: {}'.format(e))
+                if os.path.isfile(trimmed_out_file):
+                    os.remove(trimmed_out_file)
+                if os.path.isfile(out_ts_file):
+                    os.remove(out_ts_file)
+                vl_file.close()
+                exit(1)
 
             vl_file.write("file " + tmp_ts_name + "\n")
         vl_file.close()
@@ -317,6 +439,8 @@ class BBBDL(InfoExtractor):
         return slideshow_path
 
     def convert_svg_to_png(self, svg_bytes, width, height, output_path):
+        if os.path.isfile(output_path):
+            return
         PNGSurface.convert(
             bytestring=svg_bytes,
             width=width,
