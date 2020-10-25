@@ -14,6 +14,7 @@ from xml.etree import ElementTree
 
 import youtube_dl
 
+from PIL import Image, ImageDraw
 from youtube_dl import YoutubeDL
 
 from cairosvg.surface import PNGSurface
@@ -86,7 +87,7 @@ class BBBDL(InfoExtractor):
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl)
 
-    def run(self, dl_url: str, without_webcam: bool, keep_tmp_files: bool):
+    def run(self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool):
         m_obj = self._VALID_URL_RE.match(dl_url)
 
         video_id = m_obj.group('id')
@@ -103,6 +104,9 @@ class BBBDL(InfoExtractor):
 
         shapes_url = video_website + '/presentation/' + video_id + '/shapes.svg'
         shapes = self._download_xml(shapes_url, video_id)
+
+        cursor_url = video_website + '/presentation/' + video_id + '/cursor.xml'
+        cursor_infos = self._download_xml(cursor_url, video_id)
 
         # Parse metadata.xml
         meta = metadata.find('./meta')
@@ -153,7 +157,10 @@ class BBBDL(InfoExtractor):
 
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
-        slides_infos = self._add_annotations(slides_infos)
+        if add_annotations:
+            slides_infos = self._add_annotations(slides_infos)
+        if add_cursor:
+            slides_infos = self._add_cursor(slides_infos, cursor_infos)
 
         # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
@@ -199,11 +206,10 @@ class BBBDL(InfoExtractor):
             self.report_warning("Final Slideshow already exists. Abort!")
             return
 
-        if without_webcam:
-            self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
-
-        else:
+        if add_webcam:
             self.ffmpeg.mux_slideshow_with_webcam(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
+        else:
+            self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
 
         if not keep_tmp_files:
             self.to_screen("Cleanup")
@@ -230,47 +236,35 @@ class BBBDL(InfoExtractor):
                 self.to_screen('Slide %s is already present' % (slide.filename))
             else:
                 self.to_screen('Downloading slide %s...' % (slide.filename))
+                try_num = 1
                 try:
                     url_f = ydl.urlopen(slide.url)
                     with open(encodeFilename(slide.path), 'wb') as slide_f:
                         shutil.copyfileobj(url_f, slide_f)
                     self.to_screen('Successfully downloaded to: %s' % (slide.path))
                 except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
-                    self.report_warning('Unable to download slide "%s": %s' % (slide.url, error_to_compat_str(err)))
+                    self.report_warning(
+                        '(Try %s of 3) Unable to download slide "%s": %s'
+                        % (try_num, slide.url, error_to_compat_str(err))
+                    )
+                    if try_num == 3:
+                        self.report_warning('Slides are essential. Abort! Please try again later!')
+                        exit(1)
+                    try_num += 1
 
     def _add_annotations(self, slides_infos: []):
         """Expandes the slides_infos with all annotation slides"""
 
-        # convert_svg_to_png
         result_list = []
 
-        for slide in slides_infos:
+        for frame_id, slide in enumerate(slides_infos):
             if slide.annotations is None:
                 result_list.append(slide)
             else:
                 annotation_slides = []
 
-                svg_root = ElementTree.Element(
-                    '{http://www.w3.org/2000/svg}svg',
-                    {
-                        'version': '1.1',
-                        'id': 'svgfile',
-                        'style': 'position:absolute',
-                        'viewBox': '0 0 {} {}'.format(slide.width, slide.height),
-                    },
-                )
-                svg_root.append(
-                    ElementTree.Element(
-                        '{http://www.w3.org/2000/svg}image',
-                        {
-                            '{http://www.w3.org/1999/xlink}href': slide.path,
-                            'width': str(slide.width),
-                            'height': str(slide.height),
-                            'x': '0',
-                            'y': '0',
-                        },
-                    )
-                )
+                svg_root = self._create_svg_root_for_slide(slide)
+
                 real_ts_in = None
                 ignore_original_slide = False
                 draw_elements = slide.annotations.findall(_s("./svg:g[@timestamp]"))
@@ -306,11 +300,15 @@ class BBBDL(InfoExtractor):
 
                     old_path_parts = slide.path.split('.')
                     old_filename_parts = slide.filename.split('.')
-                    new_path = old_path_parts[0] + '_painted{:02d}.'.format(i) + old_path_parts[1]
-                    new_filename = old_filename_parts[0] + '_painted{:02d}.'.format(i) + old_filename_parts[1]
+                    new_path = old_path_parts[0] + '_f{:02d}_p{:02d}.'.format(frame_id, i) + old_path_parts[1]
+                    new_filename = (
+                        old_filename_parts[0] + '_f{:02d}_p{:02d}.'.format(frame_id, i) + old_filename_parts[1]
+                    )
 
                     self.to_screen(
-                        "Paint image {} with annotation {}/{}".format(slide.filename, i, len(draw_elements) - 1)
+                        "Paint image {} with annotation {}/{} (Frame: {}/{})".format(
+                            slide.filename, i, len(draw_elements) - 1, frame_id, len(slides_infos) - 1
+                        )
                     )
                     self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
 
@@ -338,6 +336,166 @@ class BBBDL(InfoExtractor):
                     result_list += annotation_slides
 
         return result_list
+
+    def _add_cursor(self, slides_infos: [], cursor_infos: ElementTree):
+        """Expandes the slides_infos with all cursors"""
+
+        result_list = []
+
+        real_ts_in = None
+        cursors = cursor_infos.findall("event[@timestamp]")
+        cursors[0].attrib['timestamp'] = '0.0'
+
+        for cursor_id in range(len(cursors)):
+            cursor = cursors[cursor_id]
+
+            ts_in = int(float(cursor.get('timestamp')))
+
+            if cursor_id == len(cursors) - 1:
+                ts_out = slides_infos[len(slides_infos) - 1].ts_out
+                if ts_out < ts_in:
+                    self.to_screen("Ignored cursor at {}".format(ts_in))
+                    continue
+                next_ts_in = None
+            else:
+                ts_out = next_ts_in = int(float(cursors[cursor_id + 1].get('timestamp')))
+
+            # if next has same timestamp, create only one
+            if next_ts_in is not None and next_ts_in <= ts_in:
+                if real_ts_in is None:
+                    real_ts_in = ts_in
+                continue
+
+            if real_ts_in is not None:
+                ts_in = real_ts_in
+                real_ts_in = None
+
+            slides = self._get_slides_between(slides_infos, ts_in, ts_out)
+            location_text = cursor.find('cursor').text
+            l_x_percent = float(location_text.split(' ')[0])
+            l_y_percent = float(location_text.split(' ')[1])
+            for slide in slides:
+
+                new_path = slide.path
+                new_filename = slide.filename
+
+                if l_x_percent != -1 and l_y_percent != -1:
+                    # svg_root = self._create_svg_root_for_slide(slide)
+                    # svg_root.append(self._create_pointer(slide, l_x_percent, l_y_percent))
+
+                    old_path_parts = slide.path.split('.')
+                    old_filename_parts = slide.filename.split('.')
+                    new_path = old_path_parts[0] + '_c{:02d}.'.format(cursor_id) + old_path_parts[1]
+                    new_filename = old_filename_parts[0] + '_c{:02d}.'.format(cursor_id) + old_filename_parts[1]
+
+                    self.to_screen(
+                        "Paint cursor on slide {} (Cursor: {}/{})".format(
+                            slide.filename,
+                            cursor_id,
+                            len(cursors) - 1,
+                        )
+                    )
+
+                    self._paint_cursor(slide, l_x_percent, l_y_percent, new_path)
+
+                    # self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
+
+                tmp_ts_out = ts_out
+                if slide.ts_out < ts_out:
+                    tmp_ts_out = slide.ts_out
+
+                result_list.append(
+                    Slide(
+                        slide.img_id,
+                        slide.url,
+                        new_filename,
+                        new_path,
+                        slide.width,
+                        slide.height,
+                        ts_in,
+                        tmp_ts_out,
+                        max(0, tmp_ts_out - ts_in),
+                    )
+                )
+                ts_in = tmp_ts_out
+
+        duration = 0
+        for result in result_list:
+            duration += result.duration
+
+        print(duration)
+
+        return result_list
+
+    def _paint_cursor(self, slide, l_x_percent, l_y_percent, output_path):
+        if os.path.isfile(output_path):
+            return
+
+        r = 6
+        cx = slide.width * l_x_percent - r
+        cy = slide.height * l_y_percent - r
+
+        with Image.open(slide.path) as image:
+            image = image.convert('RGB')
+            draw = ImageDraw.Draw(image)
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 0, 0))
+
+            image.save(output_path)
+
+    def _create_svg_root_for_slide(self, slide):
+        svg_root = ElementTree.Element(
+            '{http://www.w3.org/2000/svg}svg',
+            {
+                'version': '1.1',
+                'id': 'svgfile',
+                'style': 'position:absolute',
+                'viewBox': '0 0 {} {}'.format(slide.width, slide.height),
+            },
+        )
+        svg_root.append(
+            ElementTree.Element(
+                '{http://www.w3.org/2000/svg}image',
+                {
+                    '{http://www.w3.org/1999/xlink}href': slide.path,
+                    'width': str(slide.width),
+                    'height': str(slide.height),
+                    'x': '0',
+                    'y': '0',
+                },
+            )
+        )
+        return svg_root
+
+    def _create_pointer(self, slide, l_x_percent, l_y_percent):
+        cx = slide.width * l_x_percent - 6
+        cy = slide.height * l_y_percent - 6
+
+        pointer_svg = ElementTree.Element(
+            '{http://www.w3.org/2000/svg}circle',
+            {
+                'cx': str(cx),
+                'cy': str(cy),
+                'fill': 'red',
+                'r': '6',
+            },
+        )
+        return pointer_svg
+
+    def _get_slides_between(self, slides_infos: [], ts_in: int, ts_out: int):
+        """Retrun a Frame at a specific time stamp"""
+
+        selected_slides = []
+        for slide in slides_infos:
+            if int(slide.ts_in) <= ts_in and int(slide.ts_out) > ts_in and int(slide.ts_in) < ts_out:
+                selected_slides.append(slide)
+            if int(slide.ts_in) >= ts_out:
+                break
+
+        if len(selected_slides) == 0:
+            self.to_screen("There is are no slides between {} and {}".format(ts_in, ts_out))
+            return [slides_infos[len(slides_infos) - 1]]
+        else:
+            return selected_slides
 
     def _get_webcam_size(self, slideshow_w, slideshow_h):
         webcam_w = slideshow_w // 5
@@ -457,30 +615,41 @@ def get_parser():
         description=('Big Blue Button Downloader that downloads a BBB lesson as MP4 video')
     )
 
-    parser.add_argument('URL', type=str, help='The URL of a lesson to be downloaded.')
+    parser.add_argument('URL', type=str, help='URL of a BBB lesson')
 
     parser.add_argument(
         '--add-webcam',
         '-aw',
-        action='store_false',
-        help='Use this option if you want to see the webcam in the final video.',
+        action='store_true',
+        help='add the webcam video as an overlay to the final video',
+    )
+
+    parser.add_argument(
+        '--add-annotations',
+        '-aa',
+        action='store_true',
+        help='add the annotations of the professor to the final video',
+    )
+
+    parser.add_argument(
+        '--add-cursor',
+        '-ac',
+        action='store_true',
+        help='add the cursor of the professor to the final video',
     )
 
     parser.add_argument(
         '--keep-tmp-files',
         '-kt',
         action='store_true',
-        help=(
-            'Use this option if you want to keep the temporary files.'
-            + 'Usually the temporary files are deleted at the end of the process.'
-        ),
+        help=('keep the temporary files after finish'),
     )
 
     parser.add_argument(
         '--verbose',
         '-v',
         action='store_true',
-        help=('To print more verbose debug information'),
+        help=('print more verbose debug informations'),
     )
 
     parser.add_argument(
@@ -495,4 +664,10 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL(args.verbose).run(args.URL, args.add_webcam, args.keep_tmp_files)
+    BBBDL(args.verbose).run(
+        args.URL,
+        args.add_webcam,
+        args.add_annotations,
+        args.add_cursor,
+        args.keep_tmp_files,
+    )

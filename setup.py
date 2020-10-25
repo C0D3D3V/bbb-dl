@@ -31,6 +31,7 @@ setup(
     install_requires=[
         'cairosvg',
         'youtube_dl',
+        'PIL',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

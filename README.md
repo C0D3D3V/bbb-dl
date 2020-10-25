@@ -9,13 +9,25 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 
 ### Usage
 
-To download a lesson with webcam use: 
+```
+usage: bbb-dl [-h] [--add-webcam] [--add-annotations] [--add-cursor] [--keep-tmp-files] [--verbose] [--version] URL
 
-`bbb-dl --add-webcam https://bbb-uni.com/playback/path/to/your/video`
+Big Blue Button Downloader that downloads a BBB lesson as MP4 video
 
-Adding the webcam to the video takes longer, so you can leave it out:
+positional arguments:
+  URL                   URL of a BBB lesson
 
-`bbb-dl https://bbb-uni.com/playback/path/to/your/video`
+optional arguments:
+  -h, --help            show this help message and exit
+  --add-webcam, -aw     add the webcam video as an overlay to the final video
+  --add-annotations, -aa
+                        add the annotations of the professor to the final video
+  --add-cursor, -ac     add the cursor of the professor to the final video
+  --keep-tmp-files, -kt
+                        keep the temporary files after finish
+  --verbose, -v         print more verbose debug informations
+  --version             Print program version and exit
+```
 
 
 ### Notes
