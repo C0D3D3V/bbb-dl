@@ -419,12 +419,6 @@ class BBBDL(InfoExtractor):
                 )
                 ts_in = tmp_ts_out
 
-        duration = 0
-        for result in result_list:
-            duration += result.duration
-
-        print(duration)
-
         return result_list
 
     def _paint_cursor(self, slide, l_x_percent, l_y_percent, output_path):
