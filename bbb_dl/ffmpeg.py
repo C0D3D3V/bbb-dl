@@ -67,7 +67,7 @@ class FFMPEG:
         self.pp = MyFFmpegPostProcessor(ydl)
         self.pp.check_version()
 
-    def rescale_image(self, image, out_file, height, width):
+    def rescale_image(self, image, out_file, width, height):
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
 
     def mux_slideshow_with_webcam(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
@@ -139,17 +139,20 @@ class FFMPEG:
             return
         self.pp.run_ffmpeg(video_list, out_file, ["-c", "copy"], ["-f", "concat", "-safe", "0"])
 
-    def webm_to_mp4(self, webm_file, mp4_file):
-        if os.path.isfile(mp4_file):
-            return
-        self.pp.run_ffmpeg(webm_file, mp4_file, ["-qscale", "0"])
-
-    def trim_video_by_seconds(self, video_file, start, duration, out_file):
+    def trim_video_by_seconds(self, video_file, start, duration, width, height, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg(video_file, out_file, ["-ss", str(start), "-c", "copy", "-t", str(duration)])
-
-    def mp4_to_ts(self, inp_file, out_file):
-        if os.path.isfile(out_file):
-            return
-        self.pp.run_ffmpeg(inp_file, out_file, ["-c", "copy", "-bsf:v", "h264_mp4toannexb", "-f", "mpegts"])
+        self.pp.run_ffmpeg(
+            video_file,
+            out_file,
+            [
+                "-t",
+                str(duration),
+                "-vf",
+                "scale=%s:%s" % (width, height),
+            ],
+            [
+                "-ss",
+                str(start),
+            ],
+        )

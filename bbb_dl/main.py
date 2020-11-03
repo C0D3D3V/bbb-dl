@@ -129,12 +129,16 @@ class BBBDL(InfoExtractor):
             image_height = int(image.get('height'))
             slide_annotations = shapes.find(_s("./svg:g[@image='{}']".format(image_id)))
 
-            if img_path not in img_path_to_filename:
-                slide_filename = 'slide-{:03d}'.format(counter) + '.' + determine_ext(img_path)
-                img_path_to_filename[img_path] = slide_filename
-                counter += 1
+            if img_path.endswith('deskshare.png'):
+                image_url = 'deskshare.webm'
+                slide_filename = 'deskshare.webm'
             else:
-                slide_filename = img_path_to_filename[img_path]
+                if img_path not in img_path_to_filename:
+                    slide_filename = 'slide-{:03d}'.format(counter) + '.' + determine_ext(img_path)
+                    img_path_to_filename[img_path] = slide_filename
+                    counter += 1
+                else:
+                    slide_filename = img_path_to_filename[img_path]
 
             slide_path = video_id + '/' + slide_filename
             slide_ts_in = float(image.get('in'))
@@ -196,7 +200,7 @@ class BBBDL(InfoExtractor):
         # Post processing
         slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
 
-        slideshow_path = self._create_slideshow(slides_infos, deskshare_path, video_id)
+        slideshow_path = self._create_slideshow(slides_infos, video_id, slideshow_w, slideshow_h)
 
         result_path = title + '.mp4'
         self.to_screen("Mux Slideshow")
@@ -529,6 +533,9 @@ class BBBDL(InfoExtractor):
             if new_width == slide.width and new_height == slide.height:
                 continue
 
+            if slide.filename == 'deskshare.webm':
+                continue
+
             old_path_parts = slide.path.split('.')
             old_filename_parts = slide.filename.split('.')
             rescaled_path = old_path_parts[0] + '_scaled.' + old_path_parts[1]
@@ -542,16 +549,11 @@ class BBBDL(InfoExtractor):
             slide.filename = rescaled_filename
         return new_width, new_height
 
-    def _create_slideshow(self, slides_infos: {}, deskshare_path: str, video_id: str):
+    def _create_slideshow(self, slides_infos: {}, video_id: str, width:int, height:int):
         slideshow_path = video_id + '/slideshow.mp4'
 
         video_list = video_id + '/video_list.txt'
         vl_file = open(video_list, 'w')
-
-        deskshare_mp4_path = video_id + '/deskshare.mp4'
-        if os.path.exists(deskshare_path):
-            self.to_screen("Convert webm to mp4")
-            self.ffmpeg.webm_to_mp4(deskshare_path, deskshare_mp4_path)
 
         self.to_screen("Create slideshow")
         for i, slide in enumerate(slides_infos):
@@ -559,14 +561,12 @@ class BBBDL(InfoExtractor):
             out_ts_file = video_id + '/' + tmp_ts_name
 
             try:
-                if "deskshare.png" in slide.url:
-                    trimmed_out_file = video_id + '/{:04d}.mp4'.format(i)
+                if slide.filename == "deskshare.webm":
                     self.to_screen(
                         "Trimming deskshare (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
                         % (i, len(slides_infos) - 1, slide.ts_in, slide.duration)
                     )
-                    self.ffmpeg.trim_video_by_seconds(deskshare_mp4_path, slide.ts_in, slide.duration, trimmed_out_file)
-                    self.ffmpeg.mp4_to_ts(trimmed_out_file, out_ts_file)
+                    self.ffmpeg.trim_video_by_seconds(slide.path, slide.ts_in, slide.duration, width, height, out_ts_file)
                 else:
                     self.to_screen(
                         "Trimming slide (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
@@ -576,8 +576,6 @@ class BBBDL(InfoExtractor):
 
             except (FFmpegPostProcessorError, KeyboardInterrupt) as e:
                 self.report_warning('Something went wrong, please try again!\nError: {}'.format(e))
-                if os.path.isfile(trimmed_out_file):
-                    os.remove(trimmed_out_file)
                 if os.path.isfile(out_ts_file):
                     os.remove(out_ts_file)
                 vl_file.close()
@@ -612,36 +610,38 @@ def get_parser():
     parser.add_argument('URL', type=str, help='URL of a BBB lesson')
 
     parser.add_argument(
-        '--add-webcam',
         '-aw',
+        '--add-webcam',
         action='store_true',
         help='add the webcam video as an overlay to the final video',
     )
 
     parser.add_argument(
-        '--add-annotations',
         '-aa',
+        '--add-annotations',
         action='store_true',
         help='add the annotations of the professor to the final video',
     )
 
+    """
     parser.add_argument(
-        '--add-cursor',
         '-ac',
+        '--add-cursor',
         action='store_true',
         help='add the cursor of the professor to the final video',
     )
+    """
 
     parser.add_argument(
-        '--keep-tmp-files',
         '-kt',
+        '--keep-tmp-files',
         action='store_true',
         help=('keep the temporary files after finish'),
     )
 
     parser.add_argument(
-        '--verbose',
         '-v',
+        '--verbose',
         action='store_true',
         help=('print more verbose debug informations'),
     )
@@ -662,6 +662,6 @@ def main(args=None):
         args.URL,
         args.add_webcam,
         args.add_annotations,
-        args.add_cursor,
+        False,
         args.keep_tmp_files,
     )

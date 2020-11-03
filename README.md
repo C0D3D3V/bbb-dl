@@ -22,7 +22,6 @@ optional arguments:
   --add-webcam, -aw     add the webcam video as an overlay to the final video
   --add-annotations, -aa
                         add the annotations of the professor to the final video
-  --add-cursor, -ac     add the cursor of the professor to the final video
   --keep-tmp-files, -kt
                         keep the temporary files after finish
   --verbose, -v         print more verbose debug informations
