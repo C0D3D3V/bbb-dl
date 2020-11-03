@@ -31,6 +31,8 @@ from youtube_dl.utils import (
     determine_ext,
 )
 
+from youtube_dl.downloader.common import FileDownloader
+
 from youtube_dl.extractor.common import InfoExtractor
 from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessorError
 
@@ -549,7 +551,7 @@ class BBBDL(InfoExtractor):
             slide.filename = rescaled_filename
         return new_width, new_height
 
-    def _create_slideshow(self, slides_infos: {}, video_id: str, width:int, height:int):
+    def _create_slideshow(self, slides_infos: {}, video_id: str, width: int, height: int):
         slideshow_path = video_id + '/slideshow.mp4'
 
         video_list = video_id + '/video_list.txt'
@@ -563,14 +565,26 @@ class BBBDL(InfoExtractor):
             try:
                 if slide.filename == "deskshare.webm":
                     self.to_screen(
-                        "Trimming deskshare (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
-                        % (i, len(slides_infos) - 1, slide.ts_in, slide.duration)
+                        "Trimming deskshare (frame %s / %s) at time stamp %s (Duration: %s)"
+                        % (
+                            i,
+                            len(slides_infos) - 1,
+                            FileDownloader.format_seconds(slide.ts_in),
+                            FileDownloader.format_seconds(slide.duration),
+                        )
                     )
-                    self.ffmpeg.trim_video_by_seconds(slide.path, slide.ts_in, slide.duration, width, height, out_ts_file)
+                    self.ffmpeg.trim_video_by_seconds(
+                        slide.path, slide.ts_in, slide.duration, width, height, out_ts_file
+                    )
                 else:
                     self.to_screen(
-                        "Trimming slide (frame %s / %s) at time stamp %ss (Duration: %.2fs)"
-                        % (i, len(slides_infos) - 1, slide.ts_in, slide.duration)
+                        "Trimming slide (frame %s / %s) at time stamp %s (Duration: %s)"
+                        % (
+                            i,
+                            len(slides_infos) - 1,
+                            FileDownloader.format_seconds(slide.ts_in),
+                            FileDownloader.format_seconds(slide.duration),
+                        )
                     )
                     self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
 
