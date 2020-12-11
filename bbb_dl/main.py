@@ -132,7 +132,7 @@ class BBBDL(InfoExtractor):
             slide_annotations = shapes.find(_s("./svg:g[@image='{}']".format(image_id)))
 
             if img_path.endswith('deskshare.png'):
-                image_url = 'deskshare.webm'
+                image_url = video_website + '/presentation/' + video_id + '/deskshare/deskshare.webm'
                 slide_filename = 'deskshare.webm'
             else:
                 if img_path not in img_path_to_filename:
