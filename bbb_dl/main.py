@@ -16,6 +16,7 @@ import youtube_dl
 
 from PIL import Image, ImageDraw
 from youtube_dl import YoutubeDL
+from datetime import datetime
 
 from cairosvg.surface import PNGSurface
 from youtube_dl.compat import (
@@ -204,7 +205,8 @@ class BBBDL(InfoExtractor):
 
         slideshow_path = self._create_slideshow(slides_infos, video_id, slideshow_w, slideshow_h)
 
-        result_path = title + '.mp4'
+        formatted_date = datetime.fromtimestamp(int(start_time)/1000).strftime('%Y-%m-%dT%H-%M-%S')
+        result_path = formatted_date + '_' + title + '.mp4'
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
 
