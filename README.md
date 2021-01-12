@@ -10,7 +10,7 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 ### Usage
 
 ```
-usage: bbb-dl [-h] [--add-webcam] [--add-annotations] [--add-cursor] [--keep-tmp-files] [--verbose] [--version] URL
+usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [--version] URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
 
@@ -19,15 +19,18 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --add-webcam, -aw     add the webcam video as an overlay to the final video
-  --add-annotations, -aa
+  -aw, --add-webcam     add the webcam video as an overlay to the final video
+  -aa, --add-annotations
                         add the annotations of the professor to the final video
-  --keep-tmp-files, -kt
+  -kt, --keep-tmp-files
                         keep the temporary files after finish
-  --verbose, -v         print more verbose debug informations
+  -v, --verbose         print more verbose debug informations
   --version             Print program version and exit
 ```
 
 
-### Notes
-This project is based on the work of [CreateWebinar.com](https://github.com/createwebinar/bbb-download), [Stefan Wallentowitz](https://github.com/wallento/bbb-scrape) and [Olivier Berger](https://github.com/ytdl-org/youtube-dl/pull/25092)
+### License
+This project is licensed under the terms of the *GNU General Public License v3.0*. For further information, please look [here](http://choosealicense.com/licenses/gpl-3.0/) or [here<sup>(DE)</sup>](http://www.gnu.org/licenses/gpl-3.0.de.html).
+
+This project is based on the work of [CreateWebinar.com](https://github.com/createwebinar/bbb-download), [Stefan Wallentowitz](https://github.com/wallento/bbb-scrape) and [Olivier Berger](https://github.com/ytdl-org/youtube-dl/pull/25092).
+Parts of this code have already been published under MIT license and public domain. These parts are re-released in this project under the GPL-2.0 License.    
