@@ -128,9 +128,9 @@ class FFMPEG:
                 "-f",
                 "image2",
                 "-framerate",
-                "1",
+                "24",
                 "-r",
-                "1",
+                "24",
             ],
         )
 
@@ -150,6 +150,10 @@ class FFMPEG:
                 str(duration),
                 "-vf",
                 "scale=%s:%s" % (width, height),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
             ],
             [
                 "-ss",
