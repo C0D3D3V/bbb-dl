@@ -76,14 +76,16 @@ class BBBDL(InfoExtractor):
         r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
     )
 
-    def __init__(self, verbose: bool):
+    def __init__(self, verbose: bool, no_check_certificate: bool):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
+        ydl_options = {}
         if verbose:
-            ydl_options = {"verbose": True}
-        else:
-            ydl_options = {}
+            ydl_options.update({"verbose": True})
+
+        if no_check_certificate:
+            ydl_options.update({"nocheckcertificate": True})
 
         self.verbose = verbose
         self.ydl = youtube_dl.YoutubeDL(ydl_options)
@@ -661,6 +663,12 @@ def get_parser():
         action='store_true',
         help=('print more verbose debug informations'),
     )
+    parser.add_argument(
+        '-ncc',
+        '--no-check-certificate',
+        action='store_true',
+        help=('Suppress HTTPS certificate validation'),
+    )
 
     parser.add_argument(
         '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
@@ -674,7 +682,7 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL(args.verbose).run(
+    BBBDL(args.verbose, args.no_check_certificate).run(
         args.URL,
         args.add_webcam,
         args.add_annotations,
