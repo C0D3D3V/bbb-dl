@@ -12,7 +12,7 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 ### Usage
 
 ```
-usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [--version] URL
+usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [-ncc] [--version] URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
 
@@ -27,7 +27,10 @@ optional arguments:
   -kt, --keep-tmp-files
                         keep the temporary files after finish
   -v, --verbose         print more verbose debug informations
+  -ncc, --no-check-certificate
+                        Suppress HTTPS certificate validation
   --version             Print program version and exit
+
 ```
 
 
