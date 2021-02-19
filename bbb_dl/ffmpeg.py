@@ -3,6 +3,7 @@
 
 import os
 import subprocess
+import pathvalidate
 
 from youtube_dl import YoutubeDL
 
@@ -17,6 +18,9 @@ from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessor, FFmpegPostProce
 class MyFFmpegPostProcessor(FFmpegPostProcessor):
     def run_ffmpeg_multiple_files(self, input_paths, out_path, opts, opts_before=[]):
         self.check_version()
+        
+        # sanitze filename
+        out_path = pathvalidate.sanitize_filename(out_path)
 
         oldest_mtime = min(os.stat(encodeFilename(path)).st_mtime for path in input_paths)
 
