@@ -32,6 +32,7 @@ setup(
         'cairosvg',
         'youtube_dl',
         'Pillow',
+        'pathvalidate'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
