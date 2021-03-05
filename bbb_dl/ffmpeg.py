@@ -18,7 +18,7 @@ from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessor, FFmpegPostProce
 class MyFFmpegPostProcessor(FFmpegPostProcessor):
     def run_ffmpeg_multiple_files(self, input_paths, out_path, opts, opts_before=[]):
         self.check_version()
-        
+
         # sanitze filename
         out_path = pathvalidate.sanitize_filename(out_path)
 
@@ -67,9 +67,10 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
 
 
 class FFMPEG:
-    def __init__(self, ydl: YoutubeDL):
+    def __init__(self, ydl: YoutubeDL, encoder: str):
         self.pp = MyFFmpegPostProcessor(ydl)
         self.pp.check_version()
+        self._encoder = encoder
 
     def rescale_image(self, image, out_file, width, height):
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
@@ -122,7 +123,7 @@ class FFMPEG:
             out_file,
             [
                 "-c:v",
-                "libx264",
+                self._encoder,
                 "-t",
                 str(duration),
                 "-pix_fmt",
@@ -159,7 +160,7 @@ class FFMPEG:
                 "-vf",
                 "scale=%s:%s" % (width, height),
                 "-c:v",
-                "libx264",
+                self._encoder,
                 "-pix_fmt",
                 "yuv420p",
             ],

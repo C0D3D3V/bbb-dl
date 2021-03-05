@@ -76,7 +76,7 @@ class BBBDL(InfoExtractor):
         r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
     )
 
-    def __init__(self, verbose: bool, no_check_certificate: bool):
+    def __init__(self, verbose: bool, no_check_certificate: bool, encoder: str):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
@@ -90,7 +90,7 @@ class BBBDL(InfoExtractor):
         self.verbose = verbose
         self.ydl = youtube_dl.YoutubeDL(ydl_options)
         self.set_downloader(self.ydl)
-        self.ffmpeg = FFMPEG(self.ydl)
+        self.ffmpeg = FFMPEG(self.ydl, encoder)
 
     def run(self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool):
         m_obj = self._VALID_URL_RE.match(dl_url)
@@ -674,6 +674,14 @@ def get_parser():
         '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
     )
 
+    parser.add_argument(
+        '--encoder',
+        dest='encoder',
+        type=str,
+        default='libx264',
+        help='Optional encoder to pass to ffmpeg (default libx264)',
+    )
+
     return parser
 
 
@@ -682,7 +690,7 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL(args.verbose, args.no_check_certificate).run(
+    BBBDL(args.verbose, args.no_check_certificate, args.encoder).run(
         args.URL,
         args.add_webcam,
         args.add_annotations,
