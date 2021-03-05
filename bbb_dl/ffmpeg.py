@@ -123,7 +123,7 @@ class FFMPEG:
             out_file,
             [
                 "-c:v",
-                self._encoder,
+                "libx264",
                 "-t",
                 str(duration),
                 "-pix_fmt",
