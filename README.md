@@ -30,6 +30,7 @@ optional arguments:
   -ncc, --no-check-certificate
                         Suppress HTTPS certificate validation
   --version             Print program version and exit
+  --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
 
 ```
 
