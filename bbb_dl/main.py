@@ -208,7 +208,7 @@ class BBBDL(InfoExtractor):
         slideshow_path = self._create_slideshow(slides_infos, video_id, slideshow_w, slideshow_h)
 
         formatted_date = datetime.fromtimestamp(int(start_time) / 1000).strftime('%Y-%m-%dT%H-%M-%S')
-        result_path = formatted_date + '_' + title + '.mp4'
+        result_path = formatted_date + '_' + title.replace('/','_',title.count('/')) + '.mp4'
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
 
