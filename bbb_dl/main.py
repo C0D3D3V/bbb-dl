@@ -76,7 +76,7 @@ class BBBDL(InfoExtractor):
         r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
     )
 
-    def __init__(self, verbose: bool, no_check_certificate: bool, encoder: str):
+    def __init__(self, verbose: bool, no_check_certificate: bool, encoder: str, filename: str):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
@@ -92,7 +92,7 @@ class BBBDL(InfoExtractor):
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl, encoder)
 
-    def run(self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool):
+    def run(self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool, filename: str):
         m_obj = self._VALID_URL_RE.match(dl_url)
 
         video_id = m_obj.group('id')
@@ -208,7 +208,12 @@ class BBBDL(InfoExtractor):
         slideshow_path = self._create_slideshow(slides_infos, video_id, slideshow_w, slideshow_h)
 
         formatted_date = datetime.fromtimestamp(int(start_time) / 1000).strftime('%Y-%m-%dT%H-%M-%S')
-        result_path = formatted_date + '_' + title.replace('/','_',title.count('/')) + '.mp4'
+        
+        if filename is not None:
+            result_path = filename
+        else:
+            result_path = formatted_date + '_' + title.replace('/','_',title.count('/')) + '.mp4'
+
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
 
@@ -682,6 +687,13 @@ def get_parser():
         help='Optional encoder to pass to ffmpeg (default libx264)',
     )
 
+    parser.add_argument(
+        '-f',
+        '--filename',
+        type=str,
+        help='Optional output filename',
+    )
+
     return parser
 
 
@@ -690,10 +702,11 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL(args.verbose, args.no_check_certificate, args.encoder).run(
+    BBBDL(args.verbose, args.no_check_certificate, args.encoder, args.filename).run(
         args.URL,
         args.add_webcam,
         args.add_annotations,
         False,
         args.keep_tmp_files,
+        args.filename,
     )
