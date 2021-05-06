@@ -31,7 +31,8 @@ optional arguments:
                         Suppress HTTPS certificate validation
   --version             Print program version and exit
   --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
-
+  -f FILENAME, --filename FILENAME
+                        Optional output filename
 ```
 
 
