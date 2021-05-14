@@ -67,10 +67,11 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
 
 
 class FFMPEG:
-    def __init__(self, ydl: YoutubeDL, encoder: str):
+    def __init__(self, ydl: YoutubeDL, encoder: str, audiocodec: str):
         self.pp = MyFFmpegPostProcessor(ydl)
         self.pp.check_version()
         self._encoder = encoder
+        self._audiocodec = audiocodec
 
     def rescale_image(self, image, out_file, width, height):
         self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
@@ -86,7 +87,7 @@ class FFMPEG:
                 "[0:v]scale=%s:%s, setpts=PTS-STARTPTS, format=rgba,colorchannelmixer=aa=0.8 [ovrl];[1:v] fps=24,setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
                 % (webcam_w, webcam_h),
                 '-c:a',
-                'copy',
+                self._audiocodec,
                 '-strict',
                 'experimental',
                 "-preset",
@@ -104,7 +105,7 @@ class FFMPEG:
                 '-map',
                 '0:a',
                 '-c:a',
-                'copy',
+                self._audiocodec,
                 '-strict',
                 'experimental',
                 '-map',
