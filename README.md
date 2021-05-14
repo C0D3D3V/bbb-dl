@@ -12,7 +12,7 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 ### Usage
 
 ```
-usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [-ncc] [--version] URL
+usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [-f FILENAME] URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
 
@@ -31,6 +31,8 @@ optional arguments:
                         Suppress HTTPS certificate validation
   --version             Print program version and exit
   --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
+  --audiocodec AUDIOCODEC
+                        Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)
   -f FILENAME, --filename FILENAME
                         Optional output filename
 ```
