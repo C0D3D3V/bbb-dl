@@ -1,3 +1,5 @@
 /.idea
 /tests
 __pycache__
+bbb_dl.egg-info
+dist

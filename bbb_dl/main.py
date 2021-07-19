@@ -186,7 +186,19 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = webcams_path
             self.ydl.process_ie_result(webcams_dl)
         except DownloadError:
-            pass
+            webcams_path = video_id + '/webcams.mp4'
+            try:
+                self.to_screen("Downloading webcams.mp4")
+                webcams_dl = {
+                    'id': video_id,
+                    'title': title,
+                    'url': video_base_url + '/video/webcams.mp4',
+                    'timestamp': int(start_time),
+                }
+                self.ydl.params['outtmpl'] = webcams_path
+                self.ydl.process_ie_result(webcams_dl)
+            except DownloadError:
+                webcams_path = None
 
         deskshare_path = video_id + '/deskshare.webm'
         try:
@@ -200,7 +212,19 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = deskshare_path
             self.ydl.process_ie_result(deskshare_dl)
         except DownloadError:
-            pass
+            deskshare_path = video_id + '/deskshare.mp4'
+            try:
+                self.to_screen("Downloading deskshare.mp4")
+                deskshare_dl = {
+                    'id': video_id,
+                    'title': title,
+                    'url': video_base_url + '/deskshare/deskshare.mp4',
+                    'timestamp': int(start_time),
+                }
+                self.ydl.params['outtmpl'] = deskshare_path
+                self.ydl.process_ie_result(deskshare_dl)
+            except DownloadError:
+                deskshare_path = None
 
         # Post processing
         slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
