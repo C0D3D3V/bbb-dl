@@ -72,9 +72,12 @@ class Slide:
 
 
 class BBBDL(InfoExtractor):
-    _VALID_URL = (
-        r'(?P<website>https?://[^/]+)/playback/presentation/2.0/playback.html\?.*?meetingId=(?P<id>[0-9a-f\-]+)'
-    )
+    _VALID_URL = r'''(?x)
+                     (?P<website>https?://[^/]+)/playback/presentation/
+                     (?P<version>[\d\.]+)/
+                     (playback.html\?.*?meetingId=)?
+                     (?P<id>[0-9a-f\-]+)
+                   '''
 
     def __init__(self, verbose: bool, no_check_certificate: bool, encoder: str, filename: str, audiocodec: str):
         if '_VALID_URL_RE' not in self.__dict__:
@@ -92,8 +95,10 @@ class BBBDL(InfoExtractor):
         self.set_downloader(self.ydl)
         self.ffmpeg = FFMPEG(self.ydl, encoder, audiocodec)
 
-    def run(self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool, filename: str):
-        m_obj = self._VALID_URL_RE.match(dl_url)
+    def run(
+        self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool, filename: str
+    ):
+        m_obj = re.match(self._VALID_URL, dl_url)
 
         video_id = m_obj.group('id')
         video_website = m_obj.group('website')
@@ -212,7 +217,7 @@ class BBBDL(InfoExtractor):
         if filename is not None:
             result_path = filename
         else:
-            result_path = formatted_date + '_' + title.replace('/','_',title.count('/')) + '.mp4'
+            result_path = formatted_date + '_' + title.replace('/', '_', title.count('/')) + '.mp4'
 
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
