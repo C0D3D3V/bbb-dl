@@ -71,6 +71,22 @@ class Slide:
         self.annotations = annotations
 
 
+class BonusImage:
+    def __init__(
+        self,
+        url: str,
+        filename: str,
+        path: str,
+        width: int,
+        height: int,
+    ):
+        self.url = url
+        self.filename = filename
+        self.path = path
+        self.width = width
+        self.height = height
+
+
 class BBBDL(InfoExtractor):
     _VALID_URL = r'''(?x)
                      (?P<website>https?://[^/]+)/playback/presentation/
@@ -126,17 +142,34 @@ class BBBDL(InfoExtractor):
         self.to_screen("BBB version: " + bbb_version)
 
         # Downloading Slides
-        images = shapes.findall(_s("./svg:image[@class='slide']"))
+        images = list()
+        self.xml_find_rec(shapes, _s('svg:image'), images)
+        # images = shapes.findall(_s("./svg:image[@class='slide']"))
         slides_infos = []
+        bonus_images = []
         img_path_to_filename = {}
         counter = 0
         for image in images:
             img_path = image.get(_x('xlink:href'))
+            image_url = video_website + '/presentation/' + video_id + '/' + img_path
+            image_width = int(float(image.get('width')))
+            image_height = int(float(image.get('height')))
+
+            if not image.get('class'):
+                image_filename = image_url.split('/')[-1]
+                image_path = video_id + '/' + image_filename
+                bonus_images.append(
+                    BonusImage(
+                        image_url,
+                        image_filename,
+                        image_path,
+                        image_width,
+                        image_height,
+                    )
+                )
+                continue
 
             image_id = image.get('id')
-            image_url = video_website + '/presentation/' + video_id + '/' + img_path
-            image_width = int(image.get('width'))
-            image_height = int(image.get('height'))
             slide_annotations = shapes.find(_s("./svg:g[@image='{}']".format(image_id)))
 
             if img_path.endswith('deskshare.png'):
@@ -169,8 +202,13 @@ class BBBDL(InfoExtractor):
                 )
             )
 
+        # We now change the xml tree, all hrefs of all images now point to local files
+        for image in images:
+            image.attrib[_x('xlink:href')] = video_id + '/' + image.attrib[_x('xlink:href')].split('/')[-1]
+
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
+        self._write_slides(bonus_images, self.ydl)
         if add_annotations:
             slides_infos = self._add_annotations(slides_infos)
         if add_cursor:
@@ -258,6 +296,12 @@ class BBBDL(InfoExtractor):
         if not keep_tmp_files:
             self.to_screen("Cleanup")
             self._remove_tmp_dir(video_id)
+
+    def xml_find_rec(self, node, element, result):
+        for el in list(node):
+            self.xml_find_rec(el, element, result)
+        if node.tag == element:
+            result.append(node)
 
     def _create_tmp_dir(self, video_id):
         try:
