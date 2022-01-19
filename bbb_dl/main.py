@@ -155,7 +155,7 @@ class BBBDL(InfoExtractor):
             image_width = int(float(image.get('width')))
             image_height = int(float(image.get('height')))
 
-            if not image.get('class'):
+            if not image.get('class') or image.get('class') != 'slide':
                 image_filename = image_url.split('/')[-1]
                 image_path = video_id + '/' + image_filename
                 bonus_images.append(
