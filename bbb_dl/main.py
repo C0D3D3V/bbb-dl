@@ -137,6 +137,7 @@ class BBBDL(InfoExtractor):
         # Parse metadata.xml
         meta = metadata.find('./meta')
         start_time = xpath_text(metadata, 'start_time')
+        recording_duration = float(xpath_text(metadata, './playback/duration')) / 1000.0  # in seconds
         title = xpath_text(meta, 'meetingName')
         try:
             bbb_origin_version = xpath_text(meta, 'bbb-origin-version')
@@ -191,6 +192,7 @@ class BBBDL(InfoExtractor):
             slide_path = video_id + '/' + slide_filename
             slide_ts_in = float(image.get('in'))
             slide_ts_out = float(image.get('out'))
+            slide_ts_duration = max(0.0, min(recording_duration - slide_ts_in, slide_ts_out - slide_ts_in))
 
             slides_infos.append(
                 Slide(
@@ -202,7 +204,7 @@ class BBBDL(InfoExtractor):
                     image_height,
                     slide_ts_in,
                     slide_ts_out,
-                    max(0, slide_ts_out - slide_ts_in),
+                    slide_ts_duration,
                     slide_annotations,
                 )
             )
