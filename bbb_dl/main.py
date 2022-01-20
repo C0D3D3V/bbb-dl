@@ -138,8 +138,11 @@ class BBBDL(InfoExtractor):
         meta = metadata.find('./meta')
         start_time = xpath_text(metadata, 'start_time')
         title = xpath_text(meta, 'meetingName')
-        bbb_version = xpath_text(meta, 'bbb-origin-version').split(' ')[0]
-        self.to_screen("BBB version: " + bbb_version)
+        try:
+            bbb_version = xpath_text(meta, 'bbb-origin-version').split(' ')[0]
+            self.to_screen("BBB version: " + bbb_version)
+        except Exception:
+            pass
 
         # Downloading Slides
         images = list()
