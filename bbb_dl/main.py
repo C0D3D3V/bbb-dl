@@ -139,8 +139,10 @@ class BBBDL(InfoExtractor):
         start_time = xpath_text(metadata, 'start_time')
         title = xpath_text(meta, 'meetingName')
         try:
-            bbb_version = xpath_text(meta, 'bbb-origin-version').split(' ')[0]
-            self.to_screen("BBB version: " + bbb_version)
+            bbb_origin_version = xpath_text(meta, 'bbb-origin-version')
+            if bbb_origin_version is not None:
+                bbb_version = bbb_origin_version.split(' ')[0]
+                self.to_screen("BBB version: " + bbb_version)
         except Exception:
             pass
 
