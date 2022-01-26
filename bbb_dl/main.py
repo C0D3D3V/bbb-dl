@@ -7,8 +7,10 @@
 import argparse
 import os
 import re
+import types
 import shutil
 import socket
+
 
 from xml.etree import ElementTree
 
@@ -43,6 +45,10 @@ from bbb_dl.version import __version__
 
 _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
 _x = lambda p: xpath_with_ns(p, {'xlink': 'http://www.w3.org/1999/xlink'})
+
+
+def dummy_to_stderr(self, message):
+    return
 
 
 class Slide:
@@ -224,6 +230,10 @@ class BBBDL(InfoExtractor):
         # Downlaoding Webcam / Deskshare
         video_base_url = video_website + '/presentation/' + video_id
 
+        if not self.verbose:
+            self.ydl.to_stderr_backup = self.ydl.to_stderr
+            self.ydl.to_stderr = types.MethodType(dummy_to_stderr, self.ydl)
+
         webcams_path = video_id + '/webcams.webm'
         try:
             self.to_screen("Downloading webcams.webm")
@@ -236,9 +246,9 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = webcams_path
             self.ydl.process_ie_result(webcams_dl)
         except DownloadError:
+            self.to_screen("Downloading webcams.webm failed! Downloading webcams.mp4 instead")
             webcams_path = video_id + '/webcams.mp4'
             try:
-                self.to_screen("Downloading webcams.mp4")
                 webcams_dl = {
                     'id': video_id,
                     'title': title,
@@ -249,6 +259,7 @@ class BBBDL(InfoExtractor):
                 self.ydl.process_ie_result(webcams_dl)
             except DownloadError:
                 webcams_path = None
+                self.to_screen("Error: Downloading webcams.mp4 failed!")
 
         deskshare_path = video_id + '/deskshare.webm'
         try:
@@ -262,9 +273,9 @@ class BBBDL(InfoExtractor):
             self.ydl.params['outtmpl'] = deskshare_path
             self.ydl.process_ie_result(deskshare_dl)
         except DownloadError:
+            self.to_screen("Downloading deskshare.webm failed! Downloading deskshare.mp4 instead")
             deskshare_path = video_id + '/deskshare.mp4'
             try:
-                self.to_screen("Downloading deskshare.mp4")
                 deskshare_dl = {
                     'id': video_id,
                     'title': title,
@@ -275,7 +286,10 @@ class BBBDL(InfoExtractor):
                 self.ydl.process_ie_result(deskshare_dl)
             except DownloadError:
                 deskshare_path = None
+                self.to_screen("Warning: Downloading deskshare.mp4 failed - No desk was likely shared in this session.")
 
+        if not self.verbose:
+            self.ydl.to_stderr = self.ydl.to_stderr_backup
         # Post processing
         slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
 
