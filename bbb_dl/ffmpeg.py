@@ -16,7 +16,10 @@ from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessor, FFmpegPostProce
 
 
 class MyFFmpegPostProcessor(FFmpegPostProcessor):
-    def run_ffmpeg_multiple_files(self, input_paths, out_path, opts, opts_before=[]):
+    def own_run_ffmpeg_multiple_files(self, input_paths, out_path, opts, opts_before=None):
+        if opts_before is None:
+            opts_before = []
+
         self.check_version()
 
         # sanitize file path
@@ -43,7 +46,7 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
         )
 
         if self._downloader.params.get('verbose', False):
-            self._downloader.to_screen('[debug] ffmpeg command line: %s' % shell_quote(cmd))
+            self._downloader.to_screen(f'[debug] ffmpeg command line: {shell_quote(cmd)}')
         p = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, universal_newlines=True
         )
@@ -56,14 +59,14 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
             last_line = line
         print('')
 
-        std_out, std_err = p.communicate()
+        p.communicate()
         if p.returncode != 0:
             msg = last_line.strip().split('\n')[-1]
             raise FFmpegPostProcessorError(msg)
         self.try_utime(out_path, oldest_mtime, oldest_mtime)
 
-    def run_ffmpeg(self, path, out_path, opts, opts_before=[]):
-        self.run_ffmpeg_multiple_files([path], out_path, opts, opts_before)
+    def own_run_ffmpeg(self, path, out_path, opts, opts_before=None):
+        self.own_run_ffmpeg_multiple_files([path], out_path, opts, opts_before)
 
 
 class FFMPEG:
@@ -74,18 +77,18 @@ class FFMPEG:
         self._audiocodec = audiocodec
 
     def rescale_image(self, image, out_file, width, height):
-        self.pp.run_ffmpeg(image, out_file, ["-vf", "pad=%s:%s:ow/2-iw/2:oh/2-ih/2" % (width, height)])
+        self.pp.own_run_ffmpeg(image, out_file, ["-vf", f"pad={width}:{height}:ow/2-iw/2:oh/2-ih/2"])
 
     def mux_slideshow_with_webcam(self, video_file, webcam_file, webcam_w, webcam_h, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg_multiple_files(
+        self.pp.own_run_ffmpeg_multiple_files(
             [webcam_file, video_file],
             out_file,
             [
                 "-filter_complex",
-                "[0:v]scale=%s:%s, setpts=PTS-STARTPTS, format=rgba,colorchannelmixer=aa=0.8 [ovrl];[1:v] fps=24,setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1"
-                % (webcam_w, webcam_h),
+                f"[0:v]scale={webcam_w}:{webcam_h}, setpts=PTS-STARTPTS, format=rgba,colorchannelmixer=aa=0.8 "
+                + " [ovrl];[1:v] fps=24,setpts=PTS-STARTPTS [bg]; [bg][ovrl] overlay=W-w:H-h:shortest=1",
                 '-c:a',
                 self._audiocodec,
                 '-strict',
@@ -98,7 +101,7 @@ class FFMPEG:
     def mux_slideshow(self, video_file, webcam_file, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg_multiple_files(
+        self.pp.own_run_ffmpeg_multiple_files(
             [webcam_file, video_file],
             out_file,
             [
@@ -119,7 +122,7 @@ class FFMPEG:
     def create_video_from_image(self, image, duration, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg(
+        self.pp.own_run_ffmpeg(
             image,
             out_file,
             [
@@ -147,19 +150,19 @@ class FFMPEG:
     def concat_videos(self, video_list, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg(video_list, out_file, ["-c", "copy"], ["-f", "concat", "-safe", "0"])
+        self.pp.own_run_ffmpeg(video_list, out_file, ["-c", "copy"], ["-f", "concat", "-safe", "0"])
 
     def trim_video_by_seconds(self, video_file, start, duration, width, height, out_file):
         if os.path.isfile(out_file):
             return
-        self.pp.run_ffmpeg(
+        self.pp.own_run_ffmpeg(
             video_file,
             out_file,
             [
                 "-t",
                 str(duration),
                 "-vf",
-                "scale=%s:%s" % (width, height),
+                f"scale={width}:{height}",
                 "-c:v",
                 self._encoder,
                 "-pix_fmt",

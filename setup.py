@@ -2,7 +2,7 @@ from os import path
 from setuptools import setup, find_packages
 
 # Get the version from bbb_dl/version.py without importing the package
-exec(compile(open('bbb_dl/version.py').read(), 'bbb_dl/version.py', 'exec'))
+exec(compile(open('bbb_dl/version.py', encoding="utf-8").read(), 'bbb_dl/version.py', 'exec'))
 
 
 def readme():
@@ -32,7 +32,7 @@ setup(
         'cairosvg',
         'youtube_dl',
         'Pillow',
-        'pathvalidate'
+        'pathvalidate',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
