@@ -297,6 +297,11 @@ class BBBDL(InfoExtractor):
         if add_cursor:
             slides_infos = self._add_cursor(slides_infos, cursor_infos)
 
+        # for image in images:
+        #     image.attrib[_x('xlink:href')] = os.path.relpath(image.attrib[_x('xlink:href')])
+        for slides_info in slides_infos:
+            slides_info.path = os.path.relpath(slides_info.path)
+
         # Post processing
         slideshow_w, slideshow_h = self._rescale_slides(slides_infos)
 
@@ -426,7 +431,7 @@ class BBBDL(InfoExtractor):
                         )
                     )
 
-                    self.stripNs(svg_root)
+                    self.strip_namespace(svg_root)
                     self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
 
                     annotation_slides.append(
@@ -454,7 +459,8 @@ class BBBDL(InfoExtractor):
 
         return result_list
 
-    def stripNs(self, el):
+    def strip_namespace(self, el):
+        """Remove namespaces"""
         if el.tag.startswith("{"):
             el.tag = el.tag.split('}', 1)[1]  # strip namespace
         keys = list(el.attrib.keys())
@@ -464,7 +470,7 @@ class BBBDL(InfoExtractor):
                 el.attrib[k2] = el.attrib[k]
                 del el.attrib[k]
         for child in el:
-            self.stripNs(child)
+            self.strip_namespace(child)
 
     def _add_cursor(self, slides_infos: [], cursor_infos: ElementTree):
         """Expandes the slides_infos with all cursors"""
@@ -734,7 +740,7 @@ class BBBDL(InfoExtractor):
         </html>
         """
         Html2Image(output_path=os.path.dirname(output_path)).screenshot(
-            html_str=body, save_as=os.path.basename(output_path)
+            html_str=body, save_as=os.path.basename(output_path), size=(width, height)
         )
 
 
