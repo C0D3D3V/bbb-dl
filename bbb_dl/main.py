@@ -296,9 +296,7 @@ class BBBDL(InfoExtractor):
             slides_infos = self._add_annotations(slides_infos)
         if add_cursor:
             slides_infos = self._add_cursor(slides_infos, cursor_infos)
-
-        # for image in images:
-        #     image.attrib[_x('xlink:href')] = os.path.relpath(image.attrib[_x('xlink:href')])
+            
         for slides_info in slides_infos:
             slides_info.path = os.path.relpath(slides_info.path)
 
