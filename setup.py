@@ -28,12 +28,7 @@ setup(
         ],
     },
     python_requires='>=3.6',
-    install_requires=[
-        'cairosvg',
-        'youtube_dl',
-        'Pillow',
-        'pathvalidate',
-    ],
+    install_requires=['youtube_dl', 'Pillow', 'pathvalidate', 'html2image'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: End Users/Desktop',

@@ -10,12 +10,12 @@ import re
 import types
 import shutil
 import socket
+from html2image import Html2Image
 
 from xml.etree import ElementTree
 from datetime import datetime
 
 from PIL import Image, ImageDraw
-from cairosvg.surface import PNGSurface
 
 from youtube_dl import YoutubeDL
 from youtube_dl.compat import (
@@ -262,7 +262,7 @@ class BBBDL(InfoExtractor):
                     counter += 1
                 else:
                     slide_filename = img_path_to_filename[img_path]
-                slide_path = video_id + '/' + slide_filename
+                slide_path = os.getcwd() + '/' + video_id + '/' + slide_filename
 
             slide_ts_in = float(image.get('in'))
             slide_ts_out = float(image.get('out'))
@@ -285,7 +285,9 @@ class BBBDL(InfoExtractor):
 
         # We now change the xml tree, all hrefs of all images now point to local files
         for image in images:
-            image.attrib[_x('xlink:href')] = video_id + '/' + image.attrib[_x('xlink:href')].split('/')[-1]
+            image.attrib[_x('xlink:href')] = (
+                os.getcwd() + '/' + video_id + '/' + image.attrib[_x('xlink:href')].split('/')[-1]
+            )
 
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
@@ -423,6 +425,8 @@ class BBBDL(InfoExtractor):
                             slide.filename, i, len(draw_elements) - 1, frame_id, len(slides_infos) - 1
                         )
                     )
+
+                    self.stripNs(svg_root)
                     self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
 
                     annotation_slides.append(
@@ -449,6 +453,18 @@ class BBBDL(InfoExtractor):
                     result_list += annotation_slides
 
         return result_list
+
+    def stripNs(self, el):
+        if el.tag.startswith("{"):
+            el.tag = el.tag.split('}', 1)[1]  # strip namespace
+        keys = list(el.attrib.keys())
+        for k in keys:
+            if k.startswith("{"):
+                k2 = k.split('}', 1)[1]
+                el.attrib[k2] = el.attrib[k]
+                del el.attrib[k]
+        for child in el:
+            self.stripNs(child)
 
     def _add_cursor(self, slides_infos: [], cursor_infos: ElementTree):
         """Expandes the slides_infos with all cursors"""
@@ -712,11 +728,13 @@ class BBBDL(InfoExtractor):
     def convert_svg_to_png(self, svg_bytes, width, height, output_path):
         if os.path.isfile(output_path):
             return
-        PNGSurface.convert(
-            bytestring=svg_bytes,
-            width=width,
-            height=height,
-            write_to=open(output_path, 'wb'),
+        body = f"""
+        <html style="width: {width}px;height: {height}px;">
+          <body>{svg_bytes.decode()}</body>
+        </html>
+        """
+        Html2Image(output_path=os.path.dirname(output_path)).screenshot(
+            html_str=body, save_as=os.path.basename(output_path)
         )
 
 
