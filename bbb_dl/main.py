@@ -99,7 +99,10 @@ class BBBDL(InfoExtractor):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
-        ydl_options = {}
+        ydl_options = {
+            'retries': 10,
+            'fragment_retries': 10,
+        }
         if verbose:
             ydl_options.update({"verbose": True})
 
@@ -189,6 +192,7 @@ class BBBDL(InfoExtractor):
             except DownloadError:
                 webcams_path = None
                 self.to_screen("Error: Downloading webcams.mp4 failed!")
+                exit(1)
 
         deskshare_path = video_id + '/deskshare.webm'
         try:
@@ -252,6 +256,9 @@ class BBBDL(InfoExtractor):
             slide_annotations = shapes.find(_s("./svg:g[@image='{}']".format(image_id)))
 
             if img_path.endswith('deskshare.png'):
+                if deskshare_path is None:
+                    self.to_screen("Error: Downloading deskshare failed, but it is needed for the slideshow!")
+                    exit(1)
                 image_url = video_website + '/presentation/' + video_id + '/deskshare/deskshare.webm'
                 slide_filename = 'deskshare.webm'
                 slide_path = deskshare_path
