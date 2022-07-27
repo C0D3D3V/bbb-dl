@@ -2,48 +2,56 @@
 # Original author: CreateWebinar.com
 
 import os
+import itertools
 import subprocess
 import pathvalidate
 
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
-from youtube_dl.utils import (
+from yt_dlp.utils import (
     encodeArgument,
     encodeFilename,
     shell_quote,
 )
-from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessor, FFmpegPostProcessorError
+from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor, FFmpegPostProcessorError
 
 
 class MyFFmpegPostProcessor(FFmpegPostProcessor):
-    def own_run_ffmpeg_multiple_files(self, input_paths, out_path, opts, opts_before=None):
-        if opts_before is None:
-            opts_before = []
+    def own_run_ffmpeg_multiple_files(self, input_paths, out_path, output_path_opts, input_path_opts=None):
+        if input_path_opts is None:
+            input_path_opts = []
+        out_path = pathvalidate.sanitize_filepath(out_path)
+
+        return self.own_real_run_ffmpeg(
+            [(path, input_path_opts) for path in input_paths], [(out_path, output_path_opts)]
+        )
+
+    def own_real_run_ffmpeg(self, input_path_opts, output_path_opts):
 
         self.check_version()
 
-        # sanitize file path
-        out_path = pathvalidate.sanitize_filepath(out_path)
+        oldest_mtime = min(os.stat(encodeFilename(path)).st_mtime for path, _ in input_path_opts if path)
 
-        oldest_mtime = min(os.stat(encodeFilename(path)).st_mtime for path in input_paths)
-
-        opts += self._configuration_args()
-
-        files_cmd = []
-        for path in input_paths:
-            files_cmd.extend([encodeArgument('-i'), encodeFilename(self._ffmpeg_filename_argument(path), True)])
-        cmd = [
-            encodeFilename(self.executable, True),
-            encodeArgument('-y'),
-        ]  # without -y there is a error callen, if the file exists
+        cmd = [encodeFilename(self.executable, True), encodeArgument('-y')]
+        # avconv does not have repeat option
         if self.basename == 'ffmpeg':
             cmd += [encodeArgument('-loglevel'), encodeArgument('repeat+info')]
-        cmd += (
-            [encodeArgument(o) for o in opts_before]
-            + files_cmd
-            + [encodeArgument(o) for o in opts]
-            + [encodeFilename(self._ffmpeg_filename_argument(out_path), True)]
-        )
+
+        def make_args(file, args, name, number):
+            keys = ['_%s%d' % (name, number), '_%s' % name]
+            if name == 'o':
+                args += ['-movflags', '+faststart']
+                if number == 1:
+                    keys.append('')
+            args += self._configuration_args(self.basename, keys)
+            if name == 'i':
+                args.append('-i')
+            return [encodeArgument(arg) for arg in args] + [encodeFilename(self._ffmpeg_filename_argument(file), True)]
+
+        for arg_type, path_opts in (('i', input_path_opts), ('o', output_path_opts)):
+            cmd += itertools.chain.from_iterable(
+                make_args(path, list(opts), arg_type, i + 1) for i, (path, opts) in enumerate(path_opts) if path
+            )
 
         if self._downloader.params.get('verbose', False):
             self._downloader.to_screen(f'[debug] ffmpeg command line: {shell_quote(cmd)}')
@@ -63,7 +71,9 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
         if p.returncode != 0:
             msg = last_line.strip().split('\n')[-1]
             raise FFmpegPostProcessorError(msg)
-        self.try_utime(out_path, oldest_mtime, oldest_mtime)
+        for out_path, _ in output_path_opts:
+            if out_path:
+                self.try_utime(out_path, oldest_mtime, oldest_mtime)
 
     def own_run_ffmpeg(self, path, out_path, opts, opts_before=None):
         self.own_run_ffmpeg_multiple_files([path], out_path, opts, opts_before)

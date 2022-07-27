@@ -17,12 +17,12 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw
 
-from youtube_dl import YoutubeDL
-from youtube_dl.compat import (
+from yt_dlp import YoutubeDL
+from yt_dlp.compat import (
     compat_http_client,
     compat_urllib_error,
 )
-from youtube_dl.utils import (
+from yt_dlp.utils import (
     xpath_text,
     xpath_with_ns,
     encodeFilename,
@@ -30,9 +30,9 @@ from youtube_dl.utils import (
     DownloadError,
     determine_ext,
 )
-from youtube_dl.downloader.common import FileDownloader
-from youtube_dl.extractor.common import InfoExtractor
-from youtube_dl.postprocessor.ffmpeg import FFmpegPostProcessorError
+from yt_dlp.downloader.common import FileDownloader
+from yt_dlp.extractor.common import InfoExtractor
+from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessorError
 
 from bbb_dl.ffmpeg import FFMPEG
 from bbb_dl.version import __version__
@@ -172,7 +172,7 @@ class BBBDL(InfoExtractor):
                 'url': video_base_url + '/video/webcams.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = webcams_path
+            self.ydl.params['outtmpl']['default'] = webcams_path
             self.ydl.process_ie_result(webcams_dl)
         except DownloadError:
             self.to_screen("Downloading webcams.webm failed! Downloading webcams.mp4 instead")
@@ -184,7 +184,7 @@ class BBBDL(InfoExtractor):
                     'url': video_base_url + '/video/webcams.mp4',
                     'timestamp': int(start_time),
                 }
-                self.ydl.params['outtmpl'] = webcams_path
+                self.ydl.params['outtmpl']['default'] = webcams_path
                 self.ydl.process_ie_result(webcams_dl)
             except DownloadError:
                 webcams_path = None
@@ -199,7 +199,7 @@ class BBBDL(InfoExtractor):
                 'url': video_base_url + '/deskshare/deskshare.webm',
                 'timestamp': int(start_time),
             }
-            self.ydl.params['outtmpl'] = deskshare_path
+            self.ydl.params['outtmpl']['default'] = deskshare_path
             self.ydl.process_ie_result(deskshare_dl)
         except DownloadError:
             self.to_screen("Downloading deskshare.webm failed! Downloading deskshare.mp4 instead")
@@ -211,7 +211,7 @@ class BBBDL(InfoExtractor):
                     'url': video_base_url + '/deskshare/deskshare.mp4',
                     'timestamp': int(start_time),
                 }
-                self.ydl.params['outtmpl'] = deskshare_path
+                self.ydl.params['outtmpl']['default'] = deskshare_path
                 self.ydl.process_ie_result(deskshare_dl)
             except DownloadError:
                 deskshare_path = None
@@ -296,7 +296,7 @@ class BBBDL(InfoExtractor):
             slides_infos = self._add_annotations(slides_infos)
         if add_cursor:
             slides_infos = self._add_cursor(slides_infos, cursor_infos)
-            
+
         for slides_info in slides_infos:
             slides_info.path = os.path.relpath(slides_info.path)
 
