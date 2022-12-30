@@ -146,7 +146,15 @@ class BBBDL(InfoExtractor):
     def _mark_watched(self, *args, **kwargs):
         return
 
-    def run(self, dl_url: str, filename: str, backup: bool):
+    def run(self, dl_url: str, filename: str, outputdir: str, backup: bool):
+        if outputdir is not None:
+            try:
+                if not os.path.exists(outputdir):
+                    os.makedirs(outputdir)
+            except (OSError, IOError) as err:
+                self.ydl.report_error('unable to create output directory ' + error_to_compat_str(err))
+            os.chdir(outputdir)
+
         m_obj = re.match(self._VALID_URL, dl_url)
 
         video_id = m_obj.group('id')
@@ -957,6 +965,12 @@ def get_parser():
         help='Optional output filename',
     )
 
+    parser.add_argument(
+        '-od',
+        '--outputdir',
+        type=str,
+        help='Optional output directory',
+    )
     return parser
 
 
@@ -979,5 +993,6 @@ def main(args=None):
     ).run(
         args.URL,
         args.filename,
+        args.outputdir,
         args.backup,
     )

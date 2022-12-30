@@ -19,6 +19,41 @@ Example call:
 
 `bbb-dl --add-webcam --add-annotations https://your.bbb.org/playback/presentation/2.3/playback.html?meetingId=5d9100very_long_id70001800032c-160100033965 `
 
+
+```
+usage: bbb-dl [-h] [-aw] [-aa] [-ac] [-bk] [-kt] [-v] [-vc] [--chrome-executable CHROME_EXECUTABLE] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [-f FILENAME] [-od OUTPUTDIR] URL
+
+Big Blue Button Downloader that downloads a BBB lesson as MP4 video
+
+positional arguments:
+  URL                   URL of a BBB lesson
+
+options:
+  -h, --help            show this help message and exit
+  -aw, --add-webcam     add the webcam video as an overlay to the final video
+  -aa, --add-annotations
+                        add the annotations of the professor to the final video
+  -ac, --add-cursor     add the cursor of the professor to the final video [Experimental, very slow, untested]
+  -bk, --backup         downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the video based on the saved files
+  -kt, --keep-tmp-files
+                        keep the temporary files after finish. In case of an error bbb-dl will reuse the already generated files
+  -v, --verbose         print more verbose debug informations
+  -vc, --verbose-chrome
+                        print more verbose debug informations of the chrome browser that is used to generate screenshots
+  --chrome-executable CHROME_EXECUTABLE
+                        Optional path to your installed Chrome executable (Use it if the path is not detected automatically)
+  -ncc, --no-check-certificate
+                        Suppress HTTPS certificate validation
+  --version             Print program version and exit
+  --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
+  --audiocodec AUDIOCODEC
+                        Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)
+  -f FILENAME, --filename FILENAME
+                        Optional output filename
+  -od OUTPUTDIR, --outputdir OUTPUTDIR
+                        Optional output directory
+```
+
 ### How can I speed up the rendering process?
 
 FFmpeg can use different hardware accelerators for encoding videos. You can find more information about this here: https://trac.ffmpeg.org/wiki/HWAccelIntro
