@@ -13,6 +13,7 @@ import shutil
 import socket
 
 from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
 from datetime import datetime
 
 from PIL import Image, ImageDraw
@@ -120,9 +121,10 @@ class BBBDL(InfoExtractor):
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
+        self.global_retries = 10
         ydl_options = {
-            'retries': 10,
-            'fragment_retries': 10,
+            'retries': self.global_retries,
+            'fragment_retries': self.global_retries,
         }
         if verbose:
             ydl_options.update({"verbose": True})
@@ -144,7 +146,7 @@ class BBBDL(InfoExtractor):
     def _mark_watched(self, *args, **kwargs):
         return
 
-    def run(self, dl_url: str, filename: str):
+    def run(self, dl_url: str, filename: str, backup: bool):
         m_obj = re.match(self._VALID_URL, dl_url)
 
         video_id = m_obj.group('id')
@@ -152,18 +154,22 @@ class BBBDL(InfoExtractor):
 
         self.to_screen("Downloading meta informations")
         # Make sure the lesson exists
-        self._download_webpage(dl_url, video_id)
+        if not os.path.exists(video_id):
+            self._download_webpage(dl_url, video_id)
         self._create_tmp_dir(video_id)
 
         # Extract basic metadata
         metadata_url = video_website + '/presentation/' + video_id + '/metadata.xml'
-        metadata = self._download_xml(metadata_url, video_id)
+        metadata_local_path = video_id + '/metadata.xml'
+        metadata = self._download_and_backup_xml(metadata_url, metadata_local_path)
 
         shapes_url = video_website + '/presentation/' + video_id + '/shapes.svg'
-        shapes = self._download_xml(shapes_url, video_id)
+        shapes_local_path = video_id + '/shapes.svg'
+        shapes = self._download_and_backup_xml(shapes_url, shapes_local_path)
 
         cursor_url = video_website + '/presentation/' + video_id + '/cursor.xml'
-        cursor_infos = self._download_xml(cursor_url, video_id)
+        cursor_local_path = video_id + '/cursor.xml'
+        cursor_infos = self._download_and_backup_xml(cursor_url, cursor_local_path)
 
         # Parse metadata.xml
         meta = metadata.find('./meta')
@@ -316,8 +322,14 @@ class BBBDL(InfoExtractor):
             )
 
         self.to_screen("Downloading slides")
-        self._write_slides(slides_infos, self.ydl)
-        self._write_slides(bonus_images, self.ydl)
+        self._write_slides(slides_infos)
+        self._write_slides(bonus_images)
+
+        if backup:
+            self.to_screen("Backup Finished")
+            self.to_screen("You can run bbb-dl again to generate the video based on the backed up files!")
+            return
+
         if self.add_annotations:
             slides_infos = self._add_annotations(slides_infos)
         if self.add_cursor:
@@ -375,27 +387,65 @@ class BBBDL(InfoExtractor):
         except (OSError, IOError) as err:
             self.ydl.report_error('unable to remove directory ' + error_to_compat_str(err))
 
-    def _write_slides(self, slides_infos: {}, ydl: YoutubeDL):
+    def _download_and_backup_xml(self, url: str, local_path: str):
+        filePath = encodeFilename(local_path)
+        if os.path.exists(filePath):
+            self.to_screen('XML file %s is already present' % (local_path))
+        else:
+            self.to_screen('Downloading XML file %s...' % (url))
+            try_num = 1
+            while True:
+                try:
+                    url_f = self.ydl.urlopen(url)
+                    with open(filePath, 'wb') as xml_f:
+                        shutil.copyfileobj(url_f, xml_f)
+                    self.to_screen('Successfully downloaded to: %s' % (local_path))
+                    break
+                except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
+                    if os.path.exists(filePath):
+                        os.remove(filePath)
+                    self.report_warning(
+                        f'(Try {try_num} of {self.global_retries}) Unable to download XML file "{url}":'
+                        + f' {error_to_compat_str(err)}'
+                    )
+                    if try_num == self.global_retries:
+                        self.report_warning('XML files are essential. Abort! Please try again later!')
+                        exit(1)
+                    try_num += 1
+        try:
+            tree_root = ElementTree.parse(filePath).getroot()
+        except ParseError as err:
+            self.report_warning('Unable to parse XML file "%s": %s' % (url, error_to_compat_str(err)))
+            self.report_warning('XML files are essential. Abort! Please try again later!')
+            exit(1)
+        return tree_root
+
+    def _write_slides(self, slides_infos: {}):
         for slide in slides_infos:
-            if os.path.exists(encodeFilename(slide.path)):
+            filePath = encodeFilename(slide.path)
+            if os.path.exists(filePath):
                 self.to_screen('Slide %s is already present' % (slide.filename))
             else:
                 self.to_screen('Downloading slide %s...' % (slide.filename))
                 try_num = 1
-                try:
-                    url_f = ydl.urlopen(slide.url)
-                    with open(encodeFilename(slide.path), 'wb') as slide_f:
-                        shutil.copyfileobj(url_f, slide_f)
-                    self.to_screen('Successfully downloaded to: %s' % (slide.path))
-                except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
-                    self.report_warning(
-                        '(Try %s of 3) Unable to download slide "%s": %s'
-                        % (try_num, slide.url, error_to_compat_str(err))
-                    )
-                    if try_num == 3:
-                        self.report_warning('Slides are essential. Abort! Please try again later!')
-                        exit(1)
-                    try_num += 1
+                while True:
+                    try:
+                        url_f = self.ydl.urlopen(slide.url)
+                        with open(filePath, 'wb') as slide_f:
+                            shutil.copyfileobj(url_f, slide_f)
+                        self.to_screen('Successfully downloaded to: %s' % (slide.path))
+                        break
+                    except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
+                        if os.path.exists(filePath):
+                            os.remove(filePath)
+                        self.report_warning(
+                            f'(Try {try_num} of {self.global_retries}) Unable to download XML file "{slide.url}":'
+                            + f' {error_to_compat_str(err)}'
+                        )
+                        if try_num == self.global_retries:
+                            self.report_warning('Slides are essential. Abort! Please try again later!')
+                            exit(1)
+                        try_num += 1
 
     def _add_annotations(self, slides_infos: []):
         """Expandes the slides_infos with all annotation slides"""
@@ -837,10 +887,20 @@ def get_parser():
     )
 
     parser.add_argument(
+        '-bk',
+        '--backup',
+        action='store_true',
+        help=(
+            'downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the video based on the saved files'
+        ),
+    )
+    parser.add_argument(
         '-kt',
         '--keep-tmp-files',
         action='store_true',
-        help=('keep the temporary files after finish'),
+        help=(
+            'keep the temporary files after finish. In case of an error bbb-dl will reuse the already generated files'
+        ),
     )
 
     parser.add_argument(
@@ -854,7 +914,7 @@ def get_parser():
         '-vc',
         '--verbose-chrome',
         action='store_true',
-        help=('print more verbose debug informations'),
+        help=('print more verbose debug informations of the chrome browser that is used to generate screenshots'),
     )
 
     parser.add_argument(
@@ -919,4 +979,5 @@ def main(args=None):
     ).run(
         args.URL,
         args.filename,
+        args.backup,
     )
