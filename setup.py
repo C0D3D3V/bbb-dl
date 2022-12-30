@@ -28,7 +28,7 @@ setup(
         ],
     },
     python_requires='>=3.6',
-    install_requires=['yt-dlp', 'Pillow', 'pathvalidate', 'html2image'],
+    install_requires=['yt-dlp', 'Pillow', 'pathvalidate', 'cairosvg'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: End Users/Desktop',

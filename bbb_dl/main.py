@@ -7,15 +7,16 @@
 import argparse
 import os
 import re
+import time
 import types
 import shutil
 import socket
-from html2image import Html2Image
 
 from xml.etree import ElementTree
 from datetime import datetime
 
 from PIL import Image, ImageDraw
+from cairosvg.surface import PNGSurface
 
 from yt_dlp import YoutubeDL
 from yt_dlp.compat import (
@@ -35,6 +36,7 @@ from yt_dlp.extractor.common import InfoExtractor
 from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessorError
 
 from bbb_dl.ffmpeg import FFMPEG
+from bbb_dl.html2image import Html2Image
 from bbb_dl.version import __version__
 
 _s = lambda p: xpath_with_ns(p, {'svg': 'http://www.w3.org/2000/svg'})
@@ -95,7 +97,26 @@ class BBBDL(InfoExtractor):
                      (?P<id>[0-9a-f\-]+)
                    '''
 
-    def __init__(self, verbose: bool, no_check_certificate: bool, encoder: str, audiocodec: str):
+    def __init__(
+        self,
+        verbose: bool,
+        no_check_certificate: bool,
+        encoder: str,
+        audiocodec: str,
+        add_webcam: bool,
+        add_annotations: bool,
+        add_cursor: bool,
+        keep_tmp_files: bool,
+        verbose_chrome: bool,
+        chrome_executable: str,
+    ):
+        self.add_webcam = add_webcam
+        self.add_annotations = add_annotations
+        self.add_cursor = add_cursor
+        self.keep_tmp_files = keep_tmp_files
+        self.verbose_chrome = verbose_chrome
+        self.chrome_executable = chrome_executable
+
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
 
@@ -123,9 +144,7 @@ class BBBDL(InfoExtractor):
     def _mark_watched(self, *args, **kwargs):
         return
 
-    def run(
-        self, dl_url: str, add_webcam: bool, add_annotations: bool, add_cursor, keep_tmp_files: bool, filename: str
-    ):
+    def run(self, dl_url: str, filename: str):
         m_obj = re.match(self._VALID_URL, dl_url)
 
         video_id = m_obj.group('id')
@@ -299,9 +318,9 @@ class BBBDL(InfoExtractor):
         self.to_screen("Downloading slides")
         self._write_slides(slides_infos, self.ydl)
         self._write_slides(bonus_images, self.ydl)
-        if add_annotations:
+        if self.add_annotations:
             slides_infos = self._add_annotations(slides_infos)
-        if add_cursor:
+        if self.add_cursor:
             slides_infos = self._add_cursor(slides_infos, cursor_infos)
 
         for slides_info in slides_infos:
@@ -326,12 +345,12 @@ class BBBDL(InfoExtractor):
             self.report_warning("Final Slideshow already exists. Abort!")
             return
 
-        if add_webcam:
+        if self.add_webcam:
             self.ffmpeg.mux_slideshow_with_webcam(slideshow_path, webcams_path, webcam_w, webcam_h, result_path)
         else:
             self.ffmpeg.mux_slideshow(slideshow_path, webcams_path, result_path)
 
-        if not keep_tmp_files:
+        if not self.keep_tmp_files:
             self.to_screen("Cleanup")
             self._remove_tmp_dir(video_id)
 
@@ -436,8 +455,7 @@ class BBBDL(InfoExtractor):
                         )
                     )
 
-                    self.strip_namespace(svg_root)
-                    self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
+                    self.convert_svg_to_png(svg_root, slide.width, slide.height, new_path)
 
                     annotation_slides.append(
                         Slide(
@@ -538,7 +556,7 @@ class BBBDL(InfoExtractor):
 
                     self._paint_cursor(slide, l_x_percent, l_y_percent, new_path)
 
-                    # self.convert_svg_to_png(ElementTree.tostring(svg_root), slide.width, slide.height, new_path)
+                    # self.convert_svg_to_png(svg_root, slide.width, slide.height, new_path)
 
                 tmp_ts_out = ts_out
                 if slide.ts_out < ts_out:
@@ -736,17 +754,55 @@ class BBBDL(InfoExtractor):
         self.ffmpeg.concat_videos(video_list, slideshow_path)
         return slideshow_path
 
-    def convert_svg_to_png(self, svg_bytes, width, height, output_path):
+    def convert_svg_to_png(self, svg_root, width: int, height: int, output_path: str):
         if os.path.isfile(output_path):
             return
-        body = f"""
-        <html style="width: {width}px;height: {height}px;">
-          <body>{svg_bytes.decode()}</body>
-        </html>
-        """
-        Html2Image(output_path=os.path.dirname(output_path)).screenshot(
-            html_str=body, save_as=os.path.basename(output_path), size=(width, height)
-        )
+
+        use_html2image = False
+        if svg_root.find(_s("./svg:foreignObject")) is not None:
+            use_html2image = True
+        svg_bytes = ElementTree.tostring(svg_root)
+
+        if use_html2image:
+            self.strip_namespace(svg_root)
+            body = f"""
+            <html style="width: {width}px;height: {height}px;">
+            <body>{svg_bytes.decode()}</body>
+            </html>
+            """
+
+            Html2Image(
+                output_path=os.path.dirname(output_path),
+                browser_executable=self.chrome_executable,
+                verbose=self.verbose,
+                verbose_chrome=self.verbose_chrome,
+            ).screenshot(html_str=body, save_as=os.path.basename(output_path), size=(width, height))
+        else:
+            PNGSurface.convert(
+                bytestring=svg_bytes,
+                width=width,
+                height=height,
+                write_to=open(output_path, 'wb'),
+            )
+
+
+class Timer(object):
+    '''
+    Timing Context Manager
+    Can be used for future speed comparisons, like this:
+
+    with Timer() as t:
+        Do.stuff()
+    print(f'Do.stuff() took:\t {t.duration:.3f} \tseconds.')
+    '''
+
+    def __enter__(self):
+        self.start = time.perf_counter_ns()
+        return self
+
+    def __exit__(self, *args):
+        end = time.perf_counter_ns()
+        self.duration = (end - self.start) * 10**-9  # 1 nano-sec = 10^-9 sec
 
 
 def get_parser():
@@ -773,14 +829,12 @@ def get_parser():
         help='add the annotations of the professor to the final video',
     )
 
-    """
     parser.add_argument(
         '-ac',
         '--add-cursor',
         action='store_true',
-        help='add the cursor of the professor to the final video',
+        help='add the cursor of the professor to the final video [Experimental, very slow, untested]',
     )
-    """
 
     parser.add_argument(
         '-kt',
@@ -795,6 +849,21 @@ def get_parser():
         action='store_true',
         help=('print more verbose debug informations'),
     )
+
+    parser.add_argument(
+        '-vc',
+        '--verbose-chrome',
+        action='store_true',
+        help=('print more verbose debug informations'),
+    )
+
+    parser.add_argument(
+        '--chrome-executable',
+        type=str,
+        default=None,
+        help='Optional path to your installed Chrome executable (Use it if the path is not detected automatically)',
+    )
+
     parser.add_argument(
         '-ncc',
         '--no-check-certificate',
@@ -836,11 +905,18 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    BBBDL(args.verbose, args.no_check_certificate, args.encoder, args.audiocodec).run(
-        args.URL,
+    BBBDL(
+        args.verbose,
+        args.no_check_certificate,
+        args.encoder,
+        args.audiocodec,
         args.add_webcam,
         args.add_annotations,
-        False,
+        args.add_cursor,
         args.keep_tmp_files,
+        args.verbose_chrome,
+        args.chrome_executable,
+    ).run(
+        args.URL,
         args.filename,
     )

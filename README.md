@@ -7,35 +7,17 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 ### Setup
 1. Install [Python](https://www.python.org/) >=3.7
 2. Install [ffmpeg](https://github.com/C0D3D3V/Moodle-Downloader-2/wiki/Installing-ffmpeg)
-3. Run: `pip install bbb-dl` as administrator
+3. Run: `pip install --user bbb-dl`
+4. Run `bbb-dl --help` to see all options
+
+If you ever need to update `bbb-dl` run: `pip install --user -U bbb-dl`
 
 ### Usage
 
-```
-usage: bbb-dl [-h] [-aw] [-aa] [-kt] [-v] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [-f FILENAME] URL
 
-Big Blue Button Downloader that downloads a BBB lesson as MP4 video
+Example call: 
 
-positional arguments:
-  URL                   URL of a BBB lesson
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -aw, --add-webcam     add the webcam video as an overlay to the final video
-  -aa, --add-annotations
-                        add the annotations of the professor to the final video
-  -kt, --keep-tmp-files
-                        keep the temporary files after finish
-  -v, --verbose         print more verbose debug informations
-  -ncc, --no-check-certificate
-                        Suppress HTTPS certificate validation
-  --version             Print program version and exit
-  --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
-  --audiocodec AUDIOCODEC
-                        Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)
-  -f FILENAME, --filename FILENAME
-                        Optional output filename
-```
+`bbb-dl --add-webcam --add-annotations https://your.bbb.org/playback/presentation/2.3/playback.html?meetingId=5d9100very_long_id70001800032c-160100033965 `
 
 ### How can I speed up the rendering process?
 
