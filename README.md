@@ -36,7 +36,9 @@ Example call:
 
 
 ```
-usage: bbb-dl [-h] [-aw] [-aa] [-ac] [-bk] [-kt] [-v] [-vc] [--chrome-executable CHROME_EXECUTABLE] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [-f FILENAME] [-od OUTPUTDIR] URL
+usage: bbb-dl [-h] [-aw] [-aa] [-ac] [-bk] [-kt] [-v] [-vc] [--chrome-executable CHROME_EXECUTABLE] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC]
+              [-f FILENAME] [-od OUTPUTDIR]
+              URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
 
@@ -57,6 +59,8 @@ options:
                         print more verbose debug informations of the chrome browser that is used to generate screenshots
   --chrome-executable CHROME_EXECUTABLE
                         Optional path to your installed Chrome executable (Use it if the path is not detected automatically)
+  --ffmpeg-location FFMPEG_LOCATION
+                        Optional path to the directory in that your installed ffmpeg executable is located (Use it if the path is not detected automatically)
   -ncc, --no-check-certificate
                         Suppress HTTPS certificate validation
   --version             Print program version and exit

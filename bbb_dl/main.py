@@ -23,11 +23,11 @@ try:
 
     CAIROSVG_ERROR = None
     CAIROSVG_LOADED = True
-except Exception as err:
+except Exception as err_cairo:
     print(
         'Warning: Cairosvg could not be loaded, to speedup the `--add-annotations` option it is recommended to install cairosvg'
     )
-    CAIROSVG_ERROR = err
+    CAIROSVG_ERROR = err_cairo
     CAIROSVG_LOADED = False
 
 
@@ -36,6 +36,7 @@ from yt_dlp.compat import (
     compat_http_client,
     compat_urllib_error,
 )
+from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessorError
 from yt_dlp.utils import (
     xpath_text,
     xpath_with_ns,
@@ -150,7 +151,11 @@ class BBBDL(InfoExtractor):
 
         self.verbose = verbose
         self.ydl = YoutubeDL(ydl_options)
-        self.ffmpeg = FFMPEG(self.ydl, encoder, audiocodec)
+        try:
+            self.ffmpeg = FFMPEG(self.ydl, encoder, audiocodec)
+        except FFmpegPostProcessorError as err:
+            Log.error(f'Error: {err}')
+            exit(-1)
         super().__init__(self.ydl)
 
     def _get_automatic_captions(self, *args, **kwargs):
@@ -168,10 +173,26 @@ class BBBDL(InfoExtractor):
                 if not os.path.exists(outputdir):
                     os.makedirs(outputdir)
             except (OSError, IOError) as err:
-                self.ydl.report_error('unable to create output directory ' + error_to_compat_str(err))
+                Log.error('Error: Unable to create output directory ' + error_to_compat_str(err))
+                exit(-2)
             os.chdir(outputdir)
 
+        if not os.access(os.getcwd(), os.R_OK) or not os.access(os.getcwd(), os.W_OK):
+            Log.warning(
+                'Please make sure that you call bbb-dl from a working directory that you have write access to.'
+                + ' E.g. run `cd PATH/TO/YOUR/Download/Folder` before you run bbb-dl'
+            )
+            Log.error(f'Error: Unable to read or write in the current working directory {os.getcwd()}')
+            exit(-3)
+
         m_obj = re.match(self._VALID_URL, dl_url)
+
+        if m_obj is None:
+            Log.error(
+                f'Your URL {dl_url} does not match the bbb session pattern.'
+                + ' If you think this URL should work, please open an issue on https://github.com/C0D3D3V/bbb-dl/issues'
+            )
+            exit(-4)
 
         video_id = m_obj.group('id')
         video_website = m_obj.group('website')
@@ -240,7 +261,10 @@ class BBBDL(InfoExtractor):
                 self.ydl.process_ie_result(webcams_dl)
             except DownloadError:
                 webcams_path = None
-                self.to_screen("Error: Downloading webcams.mp4 failed!")
+                Log.error(
+                    'Error: Downloading webcams.mp4 failed! webcams.mp4 is essential.'
+                    + ' Abort! Please try again later!'
+                )
                 exit(1)
 
         deskshare_path = video_id + '/deskshare.webm'
@@ -306,8 +330,11 @@ class BBBDL(InfoExtractor):
 
             if img_path.endswith('deskshare.png'):
                 if deskshare_path is None:
-                    self.to_screen("Error: Downloading deskshare failed, but it is needed for the slideshow!")
-                    exit(1)
+                    Log.error(
+                        'Error: Downloading deskshare failed, but it is needed for the slideshow!'
+                        + ' Abort! Please try again later!'
+                    )
+                    exit(2)
                 image_url = video_website + '/presentation/' + video_id + '/deskshare/deskshare.webm'
                 slide_filename = 'deskshare.webm'
                 slide_path = deskshare_path
@@ -401,7 +428,8 @@ class BBBDL(InfoExtractor):
             if not os.path.exists(video_id):
                 os.makedirs(video_id)
         except (OSError, IOError) as err:
-            self.ydl.report_error('unable to create directory ' + error_to_compat_str(err))
+            Log.error('Error: Unable to create directory ' + error_to_compat_str(err))
+            exit(-5)
 
     def _remove_tmp_dir(self, video_id):
         try:
@@ -409,7 +437,8 @@ class BBBDL(InfoExtractor):
             if os.path.exists(video_id):
                 shutil.rmtree(video_id)
         except (OSError, IOError) as err:
-            self.ydl.report_error('unable to remove directory ' + error_to_compat_str(err))
+            Log.error('Error: Unable to remove directory ' + error_to_compat_str(err))
+            exit(-10)
 
     def _download_and_backup_xml(self, url: str, local_path: str):
         filePath = encodeFilename(local_path)
@@ -433,15 +462,15 @@ class BBBDL(InfoExtractor):
                         + f' {error_to_compat_str(err)}'
                     )
                     if try_num == self.global_retries:
-                        self.report_warning('XML files are essential. Abort! Please try again later!')
-                        exit(1)
+                        Log.error('Error: XML files are essential. Abort! Please try again later!')
+                        exit(3)
                     try_num += 1
         try:
             tree_root = ElementTree.parse(filePath).getroot()
         except ParseError as err:
-            self.report_warning('Unable to parse XML file "%s": %s' % (url, error_to_compat_str(err)))
-            self.report_warning('XML files are essential. Abort! Please try again later!')
-            exit(1)
+            Log.error('Unable to parse XML file "%s": %s' % (url, error_to_compat_str(err)))
+            sLog.error('Error: XML files are essential. Abort! Please try again later!')
+            exit(3)
         return tree_root
 
     def _write_slides(self, slides_infos: {}):
@@ -467,8 +496,8 @@ class BBBDL(InfoExtractor):
                             + f' {error_to_compat_str(err)}'
                         )
                         if try_num == self.global_retries:
-                            self.report_warning('Slides are essential. Abort! Please try again later!')
-                            exit(1)
+                            Log.error('Error: Slides are essential. Abort! Please try again later!')
+                            exit(4)
                         try_num += 1
 
     def _add_annotations(self, slides_infos: []):
@@ -815,11 +844,11 @@ class BBBDL(InfoExtractor):
                     self.ffmpeg.create_video_from_image(slide.path, slide.duration, out_ts_file)
 
             except (FFmpegPostProcessorError, KeyboardInterrupt) as e:
-                self.report_warning('Something went wrong, please try again!\nError: {}'.format(e))
+                Log.error('Error: Something went wrong, please try again!\nError: {}'.format(e))
                 if os.path.isfile(out_ts_file):
                     os.remove(out_ts_file)
                 vl_file.close()
-                exit(1)
+                exit(5)
 
             vl_file.write("file " + tmp_ts_name + "\n")
         vl_file.close()
@@ -858,6 +887,77 @@ class BBBDL(InfoExtractor):
                 height=height,
                 write_to=open(output_path, 'wb'),
             )
+
+
+RESET_SEQ = '\033[0m'
+COLOR_SEQ = '\033[1;%dm'
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
+
+
+class Log:
+    """
+    Logs a given string to output with colors
+    :param logString: the string that should be logged
+
+    The string functions returns the strings that would be logged.
+    """
+
+    @staticmethod
+    def info_str(logString: str):
+        return COLOR_SEQ % WHITE + logString + RESET_SEQ
+
+    @staticmethod
+    def special_str(logString: str):
+        return COLOR_SEQ % BLUE + logString + RESET_SEQ
+
+    @staticmethod
+    def debug_str(logString: str):
+        return COLOR_SEQ % CYAN + logString + RESET_SEQ
+
+    @staticmethod
+    def warning_str(logString: str):
+        return COLOR_SEQ % YELLOW + logString + RESET_SEQ
+
+    @staticmethod
+    def error_str(logString: str):
+        return COLOR_SEQ % RED + logString + RESET_SEQ
+
+    @staticmethod
+    def critical_str(logString: str):
+        return COLOR_SEQ % MAGENTA + logString + RESET_SEQ
+
+    @staticmethod
+    def success_str(logString: str):
+        return COLOR_SEQ % GREEN + logString + RESET_SEQ
+
+    @staticmethod
+    def info(logString: str):
+        print(Log.info_str(logString))
+
+    @staticmethod
+    def special(logString: str):
+        print(Log.special_str(logString))
+
+    @staticmethod
+    def debug(logString: str):
+        print(Log.debug_str(logString))
+
+    @staticmethod
+    def warning(logString: str):
+        print(Log.warning_str(logString))
+
+    @staticmethod
+    def error(logString: str):
+        print(Log.error_str(logString))
+
+    @staticmethod
+    def critical(logString: str):
+        print(Log.critical_str(logString))
+
+    @staticmethod
+    def success(logString: str):
+        print(Log.success_str(logString))
 
 
 class Timer(object):
