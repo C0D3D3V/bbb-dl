@@ -211,19 +211,21 @@ class BBBDL(InfoExtractor):
                 Log.error('Error: Unable to create output directory ' + error_to_compat_str(err))
                 exit(-2)
             abs_outputdir = os.path.abspath(outputdir)
+            if not backup:
+                Log.info(f'Output directory for the final video is: {abs_outputdir}')
 
         else:
-            Log.info('You have not specified an output folder, using working directory as output folder.')
+            Log.warning('You have not specified an output folder, using working directory as output folder.')
             abs_outputdir = os.path.abspath(self.original_cwd)
+            if not backup:
+                Log.warning(f'Output directory for the final video is: {abs_outputdir}')
 
         if not os.access(abs_outputdir, os.R_OK) or not os.access(abs_outputdir, os.W_OK):
+            Log.error(f'Error: Unable to read or write in the output directory {os.getcwd()}')
             Log.warning(
-                'Please make sure that you call bbb-dl from a working directory that you have write access to.'
-                + ' E.g. run `cd PATH/TO/YOUR/Download/Folder` before you run bbb-dl'
+                'You can choose an alternative output directory for the final video with the --outputdir option.'
             )
-            Log.error(f'Error: Unable to read or write in the current working directory {os.getcwd()}')
             exit(-3)
-        Log.info(f'Output directory is: {abs_outputdir}')
 
         m_obj = re.match(self._VALID_URL, dl_url)
 
@@ -242,6 +244,8 @@ class BBBDL(InfoExtractor):
         if not os.path.exists(video_id):
             self._download_webpage(dl_url, video_id)
         self._create_tmp_dir(video_id)
+        if backup:
+            Log.warning(f"Backup will be located in: {os.path.abspath(video_id)}")
 
         # Extract basic metadata
         metadata_url = video_website + '/presentation/' + video_id + '/metadata.xml'
@@ -419,7 +423,7 @@ class BBBDL(InfoExtractor):
         if backup:
             self.to_screen("Backup Finished")
             self.to_screen("You can run bbb-dl again to generate the video based on the backed up files!")
-            self.to_screen(f"Backup is located in: {os.path.abspath(video_id)}")
+            Log.warning(f"Backup is located in: {os.path.abspath(video_id)}")
             return
 
         if self.add_annotations:
@@ -471,15 +475,17 @@ class BBBDL(InfoExtractor):
             if not os.path.exists(workingdir):
                 os.makedirs(workingdir)
         except (OSError, IOError) as err:
-            Log.error('Error: Unable to create working directory ' + error_to_compat_str(err))
+            Log.warning(
+                'You can choose an alternative working directory for the temporary files with the --workingdir option.'
+            )
+            Log.error('Error: Unable to create working directory for temporary files ' + error_to_compat_str(err))
             exit(-2)
         os.chdir(workingdir)
         if not os.access(os.getcwd(), os.R_OK) or not os.access(os.getcwd(), os.W_OK):
             Log.warning(
-                'Please make sure that you call bbb-dl from a working directory that you have write access to.'
-                + ' E.g. run `cd PATH/TO/YOUR/Download/Folder` before you run bbb-dl'
+                'You can choose an alternative working directory for the temporary files with the --workingdir option.'
             )
-            Log.error(f'Error: Unable to read or write in the current working directory {os.getcwd()}')
+            Log.error(f'Error: Unable to read or write in the working directory for temporary files {os.getcwd()}')
             exit(-3)
 
     def _create_tmp_dir(self, video_id):
