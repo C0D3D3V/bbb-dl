@@ -21,12 +21,13 @@ from PIL import Image, ImageDraw
 try:
     from cairosvg.surface import PNGSurface
 
+    CAIROSVG_ERROR = None
     CAIROSVG_LOADED = True
 except Exception as err:
     print(
         'Warning: Cairosvg could not be loaded, to speedup the `--add-annotations` option it is recommended to install cairosvg'
     )
-    print(f'The error was: {err}')
+    CAIROSVG_ERROR = err
     CAIROSVG_LOADED = False
 
 
@@ -121,6 +122,7 @@ class BBBDL(InfoExtractor):
         keep_tmp_files: bool,
         verbose_chrome: bool,
         chrome_executable: str,
+        ffmpeg_location: str,
     ):
         self.add_webcam = add_webcam
         self.add_annotations = add_annotations
@@ -128,6 +130,7 @@ class BBBDL(InfoExtractor):
         self.keep_tmp_files = keep_tmp_files
         self.verbose_chrome = verbose_chrome
         self.chrome_executable = chrome_executable
+        self.ffmpeg_location = ffmpeg_location
 
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
@@ -139,6 +142,8 @@ class BBBDL(InfoExtractor):
         }
         if verbose:
             ydl_options.update({"verbose": True})
+        if self.ffmpeg_location is not None:
+            ydl_options.update({"ffmpeg_location": self.ffmpeg_location})
 
         if no_check_certificate:
             ydl_options.update({"nocheckcertificate": True})
@@ -945,6 +950,14 @@ def get_parser():
     )
 
     parser.add_argument(
+        '--ffmpeg-location',
+        type=str,
+        default=None,
+        help='Optional path to the directory in that your installed ffmpeg executable is located'
+        + ' (Use it if the path is not detected automatically)',
+    )
+
+    parser.add_argument(
         '-ncc',
         '--no-check-certificate',
         action='store_true',
@@ -990,6 +1003,8 @@ def get_parser():
 def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
+    if args.verbose and not CAIROSVG_LOADED and CAIROSVG_ERROR is not None:
+        print(f'The error was: {CAIROSVG_ERROR}')
 
     BBBDL(
         args.verbose,
@@ -1002,6 +1017,7 @@ def main(args=None):
         args.keep_tmp_files,
         args.verbose_chrome,
         args.chrome_executable,
+        args.ffmpeg_location,
     ).run(
         args.URL,
         args.filename,

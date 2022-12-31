@@ -82,7 +82,11 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
 class FFMPEG:
     def __init__(self, ydl: YoutubeDL, encoder: str, audiocodec: str):
         self.pp = MyFFmpegPostProcessor(ydl)
-        self.pp.check_version()
+        try:
+            self.pp.check_version()
+        except FFmpegPostProcessorError as err:
+            print(err)
+            exit(1)
         self._encoder = encoder
         self._audiocodec = audiocodec
 
