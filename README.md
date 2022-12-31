@@ -7,10 +7,25 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 ### Setup
 1. Install [Python](https://www.python.org/) >=3.7
 2. Install [ffmpeg](https://github.com/C0D3D3V/Moodle-Downloader-2/wiki/Installing-ffmpeg)
-3. Run: `pip install --user bbb-dl`
-4. Run `bbb-dl --help` to see all options
+3. To generate the annotated images (with the `--add-annotations` option), you need to have at least a [Chrome browser](https://www.google.com/chrome/) installed (or chromium).  
+  - To speed up annotation you can optionally install `cairosvg`. [Cairosvg](https://cairosvg.org/documentation/#installation) is 3 times faster than Chrome. For this do the following:
+    - On windows the easiest way to install `cairo` is to install [GTK+](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases), just download and install [the latest installer from here](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases)
+    - On linux and macOS the dependencies `libffi` and `cairo` may already be installed, if not use your package manager to install them.
 
-If you ever need to update `bbb-dl` run: `pip install --user -U bbb-dl`
+
+4. **[Windows only]** You may need to install [Visual C++ compiler for Python](https://wiki.python.org/moin/WindowsCompilers#Microsoft_Visual_C.2B-.2B-_14.2_standalone:_Build_Tools_for_Visual_Studio_2019_.28x86.2C_x64.2C_ARM.2C_ARM64.29) to build all the dependencies successfully (you can also do this step if step 5 fails): 
+  - Download and Install Microsoft [Build Tools for Visual Studio 2019 from here](https://aka.ms/vs/16/release/vs_buildtools.exe)
+  - In Build tools, install C++ build tools and ensure the latest versions of MSVCv142 - VS 2019 C++ x64/x86 build tools and Windows 10 SDK are checked.
+  - In some very edge cases you may also need [Visual C++ 14.0 Redistrubution Packages](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+
+5. Run as administrator: `pip install --user bbb-dl`
+    > On Windows, you must start a CMD or Powershell as administrator to run commands as an administrator
+
+    You can also install `bbb-dl` as a normal user, but then you have to care about the dependencies yourself.
+
+6. Run `bbb-dl --help` to see all options
+
+If you ever need to update `bbb-dl` run as administrator: `pip install -U bbb-dl`
 
 ### Usage
 

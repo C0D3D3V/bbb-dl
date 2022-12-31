@@ -28,7 +28,12 @@ setup(
         ],
     },
     python_requires='>=3.6',
-    install_requires=['yt-dlp', 'Pillow', 'pathvalidate', 'cairosvg'],
+    install_requires=[
+        'yt-dlp>=2022.11.11',
+        'Pillow>=9.3.0',
+        'pathvalidate>=2.5.2',
+        'cairosvg>=2.5.2',
+    ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: End Users/Desktop',

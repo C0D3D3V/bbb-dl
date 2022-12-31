@@ -17,7 +17,18 @@ from xml.etree.ElementTree import ParseError
 from datetime import datetime
 
 from PIL import Image, ImageDraw
-from cairosvg.surface import PNGSurface
+
+try:
+    from cairosvg.surface import PNGSurface
+
+    CAIROSVG_LOADED = True
+except Exception as err:
+    print(
+        'Warning: Cairosvg could not be loaded, to speedup the `--add-annotations` option it is recommended to install cairosvg'
+    )
+    print(f'The error was: {err}')
+    CAIROSVG_LOADED = False
+
 
 from yt_dlp import YoutubeDL
 from yt_dlp.compat import (
@@ -817,7 +828,7 @@ class BBBDL(InfoExtractor):
             return
 
         use_html2image = False
-        if svg_root.find(_s("./svg:foreignObject")) is not None:
+        if svg_root.find(_s("./svg:foreignObject")) is not None or CAIROSVG_LOADED is False:
             use_html2image = True
         svg_bytes = ElementTree.tostring(svg_root)
 
@@ -899,7 +910,8 @@ def get_parser():
         '--backup',
         action='store_true',
         help=(
-            'downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the video based on the saved files'
+            'downloads all the content from the server and then stops. After using this option, you can run bbb-dl'
+            + ' again to create the video based on the saved files'
         ),
     )
     parser.add_argument(
