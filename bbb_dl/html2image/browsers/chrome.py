@@ -1,5 +1,5 @@
-from .browser import Browser
-from .search_utils import get_command_origin, find_first_defined_env_var
+from bbb_dl.html2image.browsers.browser import Browser
+from bbb_dl.html2image.browsers.search_utils import get_command_origin, find_first_defined_env_var
 
 import subprocess
 import platform

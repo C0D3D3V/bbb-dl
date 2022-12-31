@@ -15,7 +15,7 @@ import shutil
 
 from textwrap import dedent
 
-from html2image.browsers import chrome
+from bbb_dl.html2image.browsers import chrome
 
 
 class Html2Image:
