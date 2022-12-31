@@ -37,7 +37,7 @@ Example call:
 
 ```
 usage: bbb-dl [-h] [-aw] [-aa] [-ac] [-bk] [-kt] [-v] [-vc] [--chrome-executable CHROME_EXECUTABLE] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC]
-              [-f FILENAME] [-od OUTPUTDIR]
+              [-f FILENAME] [-od OUTPUTDIR] [-wd WORKINGDIR]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -70,7 +70,9 @@ options:
   -f FILENAME, --filename FILENAME
                         Optional output filename
   -od OUTPUTDIR, --outputdir OUTPUTDIR
-                        Optional output directory
+                        Optional output directory for final video
+  -wd WORKINGDIR, --workingdir WORKINGDIR
+                        Optional output directory for all temporary directories/files
 ```
 
 ### How can I speed up the rendering process?

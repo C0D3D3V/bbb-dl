@@ -7,14 +7,15 @@
 import argparse
 import os
 import re
-import time
-import types
 import shutil
 import socket
+import time
+import types
 
+from datetime import datetime
+from pathlib import Path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
-from datetime import datetime
 
 from PIL import Image, ImageDraw
 
@@ -25,7 +26,8 @@ try:
     CAIROSVG_LOADED = True
 except Exception as err_cairo:
     print(
-        'Warning: Cairosvg could not be loaded, to speedup the `--add-annotations` option it is recommended to install cairosvg'
+        'Warning: Cairosvg could not be loaded,'
+        + ' to speedup the `--add-annotations` option it is recommended to install cairosvg'
     )
     CAIROSVG_ERROR = err_cairo
     CAIROSVG_LOADED = False
@@ -38,16 +40,15 @@ from yt_dlp.compat import (
 )
 from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessorError
 from yt_dlp.utils import (
-    xpath_text,
-    xpath_with_ns,
+    determine_ext,
+    DownloadError,
     encodeFilename,
     error_to_compat_str,
-    DownloadError,
-    determine_ext,
+    xpath_text,
+    xpath_with_ns,
 )
 from yt_dlp.downloader.common import FileDownloader
 from yt_dlp.extractor.common import InfoExtractor
-from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessorError
 
 from bbb_dl.ffmpeg import FFMPEG
 from bbb_dl.html2image import Html2Image
@@ -111,6 +112,33 @@ class BBBDL(InfoExtractor):
                      (?P<id>[0-9a-f\-]+)
                    '''
 
+    @staticmethod
+    def get_user_data_directory():
+        """Returns a platform-specific root directory for user application data."""
+        if os.name == "nt":
+            appdata = os.getenv("LOCALAPPDATA")
+            if appdata:
+                return appdata
+            appdata = os.getenv("APPDATA")
+            if appdata:
+                return appdata
+            return None
+        # On non-windows, use XDG_DATA_HOME if set, else default to ~/.config.
+        xdg_config_home = os.getenv("XDG_DATA_HOME")
+        if xdg_config_home:
+            return xdg_config_home
+        return os.path.join(os.path.expanduser("~"), ".local/share")
+
+    @staticmethod
+    def get_project_data_directory():
+        """
+        Returns an Path object to the project config directory
+        """
+        data_dir = Path(BBBDL.get_user_data_directory()) / "bbb-dl"
+        if not data_dir.is_dir():
+            data_dir.mkdir(parents=True, exist_ok=True)
+        return str(data_dir)
+
     def __init__(
         self,
         verbose: bool,
@@ -124,6 +152,7 @@ class BBBDL(InfoExtractor):
         verbose_chrome: bool,
         chrome_executable: str,
         ffmpeg_location: str,
+        workingdir: str,
     ):
         self.add_webcam = add_webcam
         self.add_annotations = add_annotations
@@ -132,6 +161,12 @@ class BBBDL(InfoExtractor):
         self.verbose_chrome = verbose_chrome
         self.chrome_executable = chrome_executable
         self.ffmpeg_location = ffmpeg_location
+
+        self.original_cwd = os.getcwd()
+        if workingdir is not None:
+            self._use_working_dir(workingdir)
+        else:
+            self._use_working_dir(self.get_project_data_directory())
 
         if '_VALID_URL_RE' not in self.__dict__:
             BBBDL._VALID_URL_RE = re.compile(self._VALID_URL)
@@ -175,15 +210,20 @@ class BBBDL(InfoExtractor):
             except (OSError, IOError) as err:
                 Log.error('Error: Unable to create output directory ' + error_to_compat_str(err))
                 exit(-2)
-            os.chdir(outputdir)
+            abs_outputdir = os.path.abspath(outputdir)
 
-        if not os.access(os.getcwd(), os.R_OK) or not os.access(os.getcwd(), os.W_OK):
+        else:
+            Log.info('You have not specified an output folder, using working directory as output folder.')
+            abs_outputdir = os.path.abspath(self.original_cwd)
+
+        if not os.access(abs_outputdir, os.R_OK) or not os.access(abs_outputdir, os.W_OK):
             Log.warning(
                 'Please make sure that you call bbb-dl from a working directory that you have write access to.'
                 + ' E.g. run `cd PATH/TO/YOUR/Download/Folder` before you run bbb-dl'
             )
             Log.error(f'Error: Unable to read or write in the current working directory {os.getcwd()}')
             exit(-3)
+        Log.info(f'Output directory is: {abs_outputdir}')
 
         m_obj = re.match(self._VALID_URL, dl_url)
 
@@ -379,6 +419,7 @@ class BBBDL(InfoExtractor):
         if backup:
             self.to_screen("Backup Finished")
             self.to_screen("You can run bbb-dl again to generate the video based on the backed up files!")
+            self.to_screen(f"Backup is located in: {os.path.abspath(video_id)}")
             return
 
         if self.add_annotations:
@@ -397,9 +438,11 @@ class BBBDL(InfoExtractor):
         formatted_date = datetime.fromtimestamp(int(start_time) / 1000).strftime('%Y-%m-%dT%H-%M-%S')
 
         if filename is not None:
-            result_path = filename
+            result_path = str(Path(abs_outputdir) / filename)
         else:
-            result_path = formatted_date + '_' + title.replace('/', '_', title.count('/')) + '.mp4'
+            result_path = str(
+                Path(abs_outputdir) / formatted_date + '_' + title.replace('/', '_', title.count('/')) + '.mp4'
+            )
 
         self.to_screen("Mux Slideshow")
         webcam_w, webcam_h = self._get_webcam_size(slideshow_w, slideshow_h)
@@ -423,10 +466,27 @@ class BBBDL(InfoExtractor):
         if node.tag == element:
             result.append(node)
 
+    def _use_working_dir(self, workingdir: str):
+        try:
+            if not os.path.exists(workingdir):
+                os.makedirs(workingdir)
+        except (OSError, IOError) as err:
+            Log.error('Error: Unable to create working directory ' + error_to_compat_str(err))
+            exit(-2)
+        os.chdir(workingdir)
+        if not os.access(os.getcwd(), os.R_OK) or not os.access(os.getcwd(), os.W_OK):
+            Log.warning(
+                'Please make sure that you call bbb-dl from a working directory that you have write access to.'
+                + ' E.g. run `cd PATH/TO/YOUR/Download/Folder` before you run bbb-dl'
+            )
+            Log.error(f'Error: Unable to read or write in the current working directory {os.getcwd()}')
+            exit(-3)
+
     def _create_tmp_dir(self, video_id):
         try:
             if not os.path.exists(video_id):
                 os.makedirs(video_id)
+            Log.info(f'The temporary files are generated in: {os.path.abspath(video_id)}')
         except (OSError, IOError) as err:
             Log.error('Error: Unable to create directory ' + error_to_compat_str(err))
             exit(-5)
@@ -438,7 +498,7 @@ class BBBDL(InfoExtractor):
                 shutil.rmtree(video_id)
         except (OSError, IOError) as err:
             Log.error('Error: Unable to remove directory ' + error_to_compat_str(err))
-            exit(-10)
+            exit(-6)
 
     def _download_and_backup_xml(self, url: str, local_path: str):
         filePath = encodeFilename(local_path)
@@ -469,7 +529,7 @@ class BBBDL(InfoExtractor):
             tree_root = ElementTree.parse(filePath).getroot()
         except ParseError as err:
             Log.error('Unable to parse XML file "%s": %s' % (url, error_to_compat_str(err)))
-            sLog.error('Error: XML files are essential. Abort! Please try again later!')
+            Log.error('Error: XML files are essential. Abort! Please try again later!')
             exit(3)
         return tree_root
 
@@ -1094,7 +1154,14 @@ def get_parser():
         '-od',
         '--outputdir',
         type=str,
-        help='Optional output directory',
+        help='Optional output directory for final video',
+    )
+
+    parser.add_argument(
+        '-wd',
+        '--workingdir',
+        type=str,
+        help='Optional output directory for all temporary directories/files',
     )
     return parser
 
@@ -1118,6 +1185,7 @@ def main(args=None):
         args.verbose_chrome,
         args.chrome_executable,
         args.ffmpeg_location,
+        args.workingdir,
     ).run(
         args.URL,
         args.filename,
