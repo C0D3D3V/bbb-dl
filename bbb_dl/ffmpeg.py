@@ -85,8 +85,8 @@ class FFMPEG:
         try:
             self.pp.check_version()
         except FFmpegPostProcessorError as err:
-            print(err)
-            exit(1)
+            print(f'Error: {err}')
+            exit(-2)
         self._encoder = encoder
         self._audiocodec = audiocodec
 
