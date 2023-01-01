@@ -756,12 +756,18 @@ class BBBDL(InfoExtractor):
         cx = slide.width * l_x_percent - r
         cy = slide.height * l_y_percent - r
 
-        with Image.open(slide.path) as image:
-            image = image.convert('RGB')
-            draw = ImageDraw.Draw(image)
-            draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 0, 0))
+        try:
+            with Image.open(slide.path) as image:
+                image = image.convert('RGB')
+                draw = ImageDraw.Draw(image)
+                draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 0, 0))
 
-            image.save(output_path)
+                image.save(output_path)
+        except (OSError, IOError) as err:
+            Log.error(f'This slide is broken: {os.path.abspath(slide.path)}')
+            Log.warning('Please check the file and remove it. Then run the command again!')
+            Log.error(f'Error: {err}')
+            exit(6)
 
     def _create_svg_root_for_slide(self, slide):
         svg_root = ElementTree.Element(

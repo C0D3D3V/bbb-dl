@@ -70,6 +70,12 @@ class MyFFmpegPostProcessor(FFmpegPostProcessor):
         p.communicate()
         if p.returncode != 0:
             msg = last_line.strip().split('\n')[-1]
+            self._downloader.to_screen(
+                '[ISSUE] Please run the following ffmpeg command in the same terminal and attach the output'
+                + ' to a new topic on https://github.com/C0D3D3V/bbb-dl/issues in addition to the bbb-dl log.'
+            )
+
+            self._downloader.to_screen(f'[Error] ffmpeg command line: {shell_quote(cmd)}')
             raise FFmpegPostProcessorError(msg)
         for out_path, _ in output_path_opts:
             if out_path:

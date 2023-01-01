@@ -25,9 +25,24 @@ Downloads a BBB lesson as MP4 video, including presentation, audio, webcam and s
 
 6. Run `bbb-dl --help` to see all options
 
+
 If you ever need to update `bbb-dl` run as administrator: `pip install -U bbb-dl`
 
 ### Usage
+
+**Temporary files are default stored in the application data folder** 
+
+- The `--backup` option uses the same location
+- You can change this location with the `--workingdir` option
+- On Windows, the folder is located in `%localappdata%\bbb-dl`
+- On Linux / MacOS, the folder is located in `~/.local/share/bbb-dl/`
+
+**What should I do if I exit the program too early**
+
+- If it is an error, bbb-dl should be able to restore the last state on its own, just call the command you used before
+- However, sometimes bbb-dl will ask you to delete a specific file.
+- If it is because you canceled bbb-dl, or the same error occurs repeatedly, then you should first go to the temporary directory and remove the file that was created last. Usually, only one file is corrupted, but if more than one file is corrupted you can also remove the whole temporary folder of the video and start over. 
+- For images, you can tell if they are faulty if you see unexpected black areas in the thumbnail or the image. 
 
 
 Example call: 
