@@ -445,7 +445,7 @@ class BBBDL(InfoExtractor):
             result_path = str(Path(abs_outputdir) / filename)
         else:
             result_path = str(
-                Path(abs_outputdir) / formatted_date + '_' + title.replace('/', '_', title.count('/')) + '.mp4'
+                Path(abs_outputdir) / (formatted_date + '_' + title.replace('/', '_', title.count('/')) + '.mp4')
             )
 
         self.to_screen("Mux Slideshow")
