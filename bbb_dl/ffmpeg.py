@@ -50,12 +50,17 @@ class FFMPEG:
 
         self.encoder = encoder
         self.audiocodec = audiocodec
+        self.stderr_log = []
 
     def on_error(self, code: int):
+        if self.verbose:
+            for line in self.stderr_log:
+                print(line)
         Log.error(f"Error: {code}")
         exit(-10)
 
     def on_start(self, arguments: List[str]):
+        self.stderr_log = []
         if self.verbose:
             Log.info(f"Running command: {' '.join(arguments)}")
 
@@ -69,10 +74,16 @@ class FFMPEG:
         print()
         Log.info('Command finished')
 
+    def on_log_stderr(self, line):
+        if self.verbose:
+            if line.find('bitrate=') == -1 and line.find('time=') == -1:
+                self.stderr_log.append(line)
+
     def add_standard_handlers(self, ffmpeg_obj):
         ffmpeg_obj.on("start", self.on_start)
         ffmpeg_obj.on("error", self.on_error)
         ffmpeg_obj.on("progress", self.on_progress)
+        ffmpeg_obj.on("stderr", self.on_log_stderr)
         ffmpeg_obj.on("completed", self.on_completed)
 
     def get_video_infos(self, video_path: str) -> VideoInfo:
@@ -150,6 +161,7 @@ class FFMPEG:
             .input(
                 concat_file_path,
                 f='concat',
+                # safe='0',
                 # hwaccel="auto",  # In tests it was slower with hwaccel
             )
             .output(
@@ -202,6 +214,7 @@ class FFMPEG:
             .input(
                 concat_file_path,
                 f='concat',
+                # safe='0',
                 # hwaccel="auto",   # In tests it was slower with hwaccel
             )
             .output(

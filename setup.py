@@ -33,6 +33,7 @@ setup(
         'aiohttp>=3.8.3',
         'playwright>=1.29.0',
         'python-ffmpeg>=1.0.16',
+        'colorama>=0.4.6',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

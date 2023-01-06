@@ -27,6 +27,7 @@ import aiofiles
 from aiohttp.client_exceptions import ClientError, ClientResponseError
 from playwright.async_api import async_playwright
 from playwright.async_api._generated import Page
+from colorama import just_fix_windows_console
 
 from bbb_dl.ffmpeg import FFMPEG
 from bbb_dl.utils import (
@@ -78,7 +79,7 @@ class Metadata:
 class Frame:
     timestamp: float
     actions: [Action]
-    capture_rel_path: str = None
+    capture_filename: str = None
     capture_path: str = None
 
 
@@ -610,9 +611,9 @@ class BBBDL:
 
     def get_frame_by_timestamp(self, frames: Dict[float, Frame], timestamp: float):
         if timestamp not in frames:
-            capture_rel_path = PT.get_in_dir('frames', f'{timestamp}.png')
-            capture_path = PT.get_in_dir(self.frames_dir, f'{timestamp}.png')
-            frames[timestamp] = Frame(timestamp, [], capture_rel_path, capture_path)
+            capture_filename = f'{timestamp}.png'
+            capture_path = PT.get_in_dir(self.frames_dir, capture_filename)
+            frames[timestamp] = Frame(timestamp, [], capture_filename, capture_path)
         return frames[timestamp]
 
     def parse_slide_partitions(self, loaded_shapes: Element, recording_duration: float) -> List[Tuple]:
@@ -1093,16 +1094,16 @@ class BBBDL:
             Log.warning('Slideshow does already exist! Skipping rendering!')
             return slideshow_path
 
-        slideshow_txt_path = PT.get_in_dir(self.tmp_dir, 'slideshow.txt')
+        slideshow_txt_path = PT.get_in_dir(self.frames_dir, 'slideshow.txt')
         with open(slideshow_txt_path, 'w', encoding="utf-8") as concat_file:
             timestamps = list(frames.keys())
             for idx in range(len(timestamps) - 1):
                 duration = math.floor(10 * (timestamps[idx + 1] - timestamps[idx]) + 0.5) / 10
-                concat_file.write(f"file '{frames[timestamps[idx]].capture_rel_path}'\n")
+                concat_file.write(f"file '{frames[timestamps[idx]].capture_filename}'\n")
                 concat_file.write(f"duration {duration}\n")
 
             # We use the second to last frame again, because the last frame is always empty.
-            # concat_file.write(f"file {frames[timestamps[-2]].capture_rel_path}\n")
+            # concat_file.write(f"file {frames[timestamps[-2]].capture_filename}\n")
 
         with Timer() as t:
             asyncio.run(self.ffmpeg.create_slideshow(slideshow_txt_path, slideshow_path, width, height))
@@ -1257,6 +1258,7 @@ def get_parser():
 
 # --- called at the program invocation: -------------------------------------
 def main(args=None):
+    just_fix_windows_console()
     parser = get_parser()
     args = parser.parse_args(args)
 
