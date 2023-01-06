@@ -56,7 +56,12 @@ class FFMPEG:
         if self.verbose:
             for line in self.stderr_log:
                 print(line)
-        Log.error(f"Error: {code}")
+        else:
+            Log.warning(
+                'Please run bbb-dl again with the extra option --verbose to get the ffmpeg error message.'
+                + ' Then add the log output to a new issue on https://github.com/C0D3D3V/bbb-dl/issues'
+            )
+        Log.error(f"Error: FFMpeg failed and returned error code {code}")
         exit(-10)
 
     def on_start(self, arguments: List[str]):
