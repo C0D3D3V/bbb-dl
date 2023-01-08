@@ -103,9 +103,13 @@ FFmpeg can use different hardware accelerators for encoding videos. You can find
 
 To use such hardware for encoding you may need to install drivers as indicated on the website and then set the `--encoder` option to the appropriate encoder. 
 
-For example, if you have an Nvidia graphics card installed on a computer, you can use it with the [NVENC](https://trac.ffmpeg.org/wiki/HWAccelIntro#CUDANVENCNVDEC) encoder. For this, you simply set the option `--encoder h264_nvenc`. You can see on the [Nvidia website which graphics cards support this option](https://developer.nvidia.com/video-encode-and-decode-gpu-support-matrix-new). If your graphics card also supports H.265 (HEVC) you can set the option `--encoder hevc_nvenc` instead, which might be even faster (you have to test this yourself).
+For example, if you have an **Nvidia** graphics card installed on a computer, you can use it with the [NVENC](https://trac.ffmpeg.org/wiki/HWAccelIntro#CUDANVENCNVDEC) encoder. For this, you simply set the option `--encoder h264_nvenc`. You can see on the [Nvidia website which graphics cards support this option](https://developer.nvidia.com/video-encode-and-decode-gpu-support-matrix-new). If your graphics card also supports H.265 (HEVC) you can set the option `--encoder hevc_nvenc` instead, which might be even faster (you have to test this yourself).
 
-For Intle CPUs you can try the encoder `h264_qsv` (Use the option `--encoder h264_qsv`). You have to test yourself if it is faster or not. In some cases, hardware encoders are slower than using the CPU directly.  
+- For Intel CPUs, you can try the encoder `h264_qsv` (Use the option `--encoder h264_qsv`). Sometimes this encoder is faster than your graphics card encoder.
+
+- For AMD CPUs / GPUs, you can try the encoder `h264_amf` (Use the option `--encoder h264_amf`).
+
+> You have to test yourself if it is faster to use your hardware encoder or not. In some cases, hardware encoders are slower than using the CPU directly. 
 
 
 ### License
