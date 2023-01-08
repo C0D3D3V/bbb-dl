@@ -1179,7 +1179,10 @@ def get_parser():
         '--ffmpeg-location',
         type=str,
         default=None,
-        help='Optional path to the directory in that your installed ffmpeg executable is located (Use it if ffmpeg is not located in your system PATH)',
+        help=(
+            'Optional path to the directory in that your installed ffmpeg executable is located'
+            + ' (Use it if ffmpeg is not located in your system PATH)'
+        ),
     )
 
     parser.add_argument(
@@ -1190,7 +1193,10 @@ def get_parser():
     )
 
     parser.add_argument(
-        '--version', action='version', version='bbb-dl ' + __version__, help='Print program version and exit'
+        '--version',
+        action='version',
+        version='bbb-dl ' + __version__,
+        help='Print program version and exit',
     )
 
     parser.add_argument(
@@ -1212,6 +1218,7 @@ def get_parser():
         '-f',
         '--filename',
         type=str,
+        default=None,
         help='Optional output filename',
     )
 
@@ -1219,6 +1226,7 @@ def get_parser():
         '-od',
         '--output-dir',
         type=str,
+        default=None,
         help='Optional output directory for final video',
     )
 
@@ -1226,6 +1234,7 @@ def get_parser():
         '-wd',
         '--working-dir',
         type=str,
+        default=None,
         help='Optional output directory for all temporary directories/files',
     )
 

@@ -19,6 +19,7 @@ class QuietRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+
 def get_free_port():
     """
     Ask the system for a free port.
@@ -415,25 +416,3 @@ class PathTools:
         if not data_dir.is_dir():
             data_dir.mkdir(parents=True, exist_ok=True)
         return str(data_dir)
-
-    @staticmethod
-    def get_feeds_directory():
-        feeds_dir = Path(PathTools.get_project_data_directory()) / "feeds"
-        if not feeds_dir.is_dir():
-            feeds_dir.mkdir(parents=True, exist_ok=True)
-        return str(feeds_dir)
-
-    @staticmethod
-    def get_unused_filename(destination: str, filename: str, file_extension: str):
-        count = 0
-        new_file_path = str(Path(destination) / f'{filename}_{count:04d}{file_extension}')
-        while os.path.exists(new_file_path):
-            count += 1
-            new_file_path = str(Path(destination) / f'{filename}_{count:04d}{file_extension}')
-
-        return new_file_path
-
-    @staticmethod
-    def get_path_of_new_feed_json(downloader_name: str):
-        feeds_dir = PathTools.get_feeds_directory()
-        return PathTools.get_unused_filename(feeds_dir, downloader_name, '.json')

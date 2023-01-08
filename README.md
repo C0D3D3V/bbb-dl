@@ -83,6 +83,12 @@ options:
                         Force height on final output. (e.g. 720) This can reduce the time to generate the final video
 ```
  
+**Batch processing**
+
+ If you want to do batch processing you can use `bbb-dl-batch`. All passed arguments will be passed to the respective `bbb-dl`. `bbb-dl-batch` itself only needs the path to a text file in which URLs to bbb sessions are specified line by line. See `bbb-dl-batch --help` for more information.
+
+ Successfully downloaded URL sessions are added to `successful.txt` in the output folder. Session URLs that could not be successfully downloaded are added to `failed.txt` in the output folder. 
+
 
 **Alternativ downloader**
 
