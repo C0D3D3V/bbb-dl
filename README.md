@@ -105,6 +105,8 @@ To use such hardware for encoding you may need to install drivers as indicated o
 
 For example, if you have an Nvidia graphics card installed on a computer, you can use it with the [NVENC](https://trac.ffmpeg.org/wiki/HWAccelIntro#CUDANVENCNVDEC) encoder. For this, you simply set the option `--encoder h264_nvenc`. You can see on the [Nvidia website which graphics cards support this option](https://developer.nvidia.com/video-encode-and-decode-gpu-support-matrix-new). If your graphics card also supports H.265 (HEVC) you can set the option `--encoder hevc_nvenc` instead, which might be even faster (you have to test this yourself).
 
+For Intle CPUs you can try the encoder `h264_qsv` (Use the option `--encoder h264_qsv`). You have to test yourself if it is faster or not. In some cases, hardware encoders are slower than using the CPU directly.  
+
 
 ### License
 This project is licensed under the terms of the *MIT License*. For further information, please look [here](LICENSE).

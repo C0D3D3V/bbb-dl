@@ -204,7 +204,7 @@ class FFMPEG:
                     f'scale=w={width}:h={height}:force_original_aspect_ratio=decrease,'
                     + f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2'
                 ),
-                preset='ultrafast',
+                preset='fast',
             )
         )
 
@@ -229,7 +229,7 @@ class FFMPEG:
                     'c:a': self.audiocodec,
                 },
                 strict='experimental',
-                preset='ultrafast',
+                preset='fast',
             )
         )
         self.add_standard_handlers(ffmpeg)
@@ -277,7 +277,7 @@ class FFMPEG:
                     + '[ovrl];[1:v]fps=24,setpts=PTS-STARTPTS[bg];[bg][ovrl]overlay=W-w:H-h:shortest=1'
                 ),
                 strict='experimental',
-                preset='ultrafast',
+                preset='fast',
             )
         )
         self.add_standard_handlers(ffmpeg)
@@ -298,7 +298,7 @@ class FFMPEG:
                 },
                 map=['0:a', '1:v'],
                 strict='experimental',
-                preset='ultrafast',
+                preset='fast',
                 shortest=None,
             )
         )
