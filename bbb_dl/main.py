@@ -151,7 +151,6 @@ class BBBDL:
         self.output_dir = self.get_output_dir(output_dir)
         self.slideshow_width = int(force_width) if force_width is not None else None
         self.slideshow_height = int(force_height) if force_height is not None else None
-        self.slideshow_aspect_ratio = None
 
         self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset)
 
@@ -236,7 +235,6 @@ class BBBDL:
             self.slideshow_width = guessed_slideshow_width
         if self.slideshow_height is None:
             self.slideshow_height = guessed_slideshow_height
-        self.slideshow_aspect_ratio = self.slideshow_width / self.slideshow_height
 
         self.create_frames(frames, only_zooms, partitions)
 
@@ -526,11 +524,20 @@ class BBBDL:
         # scale_h = trunc(ow/a/2)*2
         # abs_pos_x =  (ow-scale_w)/2
         # abs_pos_y = (oh-scale_h)/2
+
+        # First try to use whole slideshow width
+        aspect_ratio = action.width / action.height
         width = self.slideshow_width
-        height = int(math.trunc(self.slideshow_width / self.slideshow_aspect_ratio / 2) * 2)
+        height = int(math.trunc(width / aspect_ratio / 2) * 2)
+
+        if height > self.slideshow_height:
+            # Try to use whole slideshow height
+            aspect_ratio = action.height / action.width
+            height = self.slideshow_height
+            width = int(math.trunc(height / aspect_ratio / 2) * 2)
+
         pos_x = int((self.slideshow_width - width) / 2)
         pos_y = int((self.slideshow_height - height) / 2)
-
         await page.evaluate(
             """([viewBox, width, height, pos_x, pos_y]) => {
                 let el = document.querySelector('#svgfile')
