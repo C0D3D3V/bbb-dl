@@ -40,8 +40,8 @@ Example call:
 It is recommended to set the output resolution with `--force-width` and `--force-height`
 
 ```
-usage: bbb-dl [-h] [-sw] [-swfd] [-sa] [-sc] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [-f FILENAME] [-od OUTPUT_DIR] [-wd WORKING_DIR]
-              [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
+usage: bbb-dl [-h] [-sw] [-swfd] [-sa] [-sc] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [-f FILENAME] [-od OUTPUT_DIR]
+              [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -69,6 +69,7 @@ options:
   --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
   --audiocodec AUDIOCODEC
                         Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)
+  --preset PRESET       Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)
   -f FILENAME, --filename FILENAME
                         Optional output filename
   -od OUTPUT_DIR, --output-dir OUTPUT_DIR

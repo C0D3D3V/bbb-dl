@@ -128,6 +128,7 @@ class BBBDL:
         max_parallel_chromes: int,
         force_width: int,
         force_height: int,
+        preset: str,
     ):
         # Rendering options
         self.skip_webcam_opt = skip_webcam
@@ -151,7 +152,7 @@ class BBBDL:
         self.force_width = int(force_width) if force_width is not None else None
         self.force_height = int(force_height) if force_height is not None else None
 
-        self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec)
+        self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset)
 
         # Check DL-URL
         m_obj = re.match(self.VALID_URL_RE, self.dl_url)
@@ -1213,6 +1214,13 @@ def get_parser():
         default='copy',
         help='Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)',
     )
+    parser.add_argument(
+        '--preset',
+        dest='preset',
+        type=str,
+        default='fast',
+        help='Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)',
+    )
 
     parser.add_argument(
         '-f',
@@ -1291,5 +1299,6 @@ def main(args=None):
             args.max_parallel_chromes,
             args.force_width,
             args.force_height,
+            args.preset,
         ).run()
     Log.info(f'BBB-DL finished and took: {formatSeconds(final_t.duration)}')

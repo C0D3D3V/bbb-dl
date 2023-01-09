@@ -42,6 +42,7 @@ class BatchProcessor:
         max_parallel_chromes: int,
         force_width: int,
         force_height: int,
+        preset: str,
     ):
         self.bbb_dl_path = bbb_dl_path
         option_list = []
@@ -61,6 +62,7 @@ class BatchProcessor:
         self.add_value_option(option_list, '--max-parallel-chromes', max_parallel_chromes)
         self.add_value_option(option_list, '--force-width', force_width)
         self.add_value_option(option_list, '--force-height', force_height)
+        self.add_value_option(option_list, '--preset', preset)
         self.default_option_list = option_list
         self.dl_urls_file_path = dl_urls_file_path
 
@@ -314,6 +316,13 @@ def get_parser():
         default='copy',
         help='Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)',
     )
+    parser.add_argument(
+        '--preset',
+        dest='preset',
+        type=str,
+        default='fast',
+        help='Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)',
+    )
 
     parser.add_argument(
         '-od',
@@ -384,5 +393,6 @@ def main(args=None):
             args.max_parallel_chromes,
             args.force_width,
             args.force_height,
+            args.preset,
         ).run()
     Log.info(f'BBB-DL finished and took: {formatSeconds(final_t.duration)}')
