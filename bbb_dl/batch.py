@@ -1,24 +1,19 @@
 import argparse
-import asyncio
 import os
-import re
-import signal
-import sys
+import subprocess
 
-from asyncio.subprocess import PIPE, Process
+from subprocess import CalledProcessError
 from typing import List
 
 from colorama import just_fix_windows_console
 
-from bbb_dl.version import __version__
 from bbb_dl.utils import (
     formatSeconds,
     Log,
-    Timer,
     PathTools as PT,
+    Timer,
 )
-
-_is_windows = sys.platform == "win32"
+from bbb_dl.version import __version__
 
 
 class BatchProcessor:
@@ -67,7 +62,6 @@ class BatchProcessor:
         self.dl_urls_file_path = dl_urls_file_path
 
         self.output_dir_path = self.get_output_dir(output_dir)
-        self.current_process = None
 
     def get_output_dir(
         self,
@@ -128,81 +122,36 @@ class BatchProcessor:
             Log.error(f'Error: {str(err)}')
             exit(-1)
 
-        try:
-            for url in URL_List:
-                successful = asyncio.run(self.execute_bbb_dl(url))
-                if successful:
-                    self.add_url_to_file(url, 'successful.txt')
-                else:
-                    self.add_url_to_file(url, 'failed.txt')
-        except KeyboardInterrupt:
-            if self.current_process is not None:
-                self.terminate()
-
-    async def readlines(self, stream: asyncio.StreamReader):
-        pattern = re.compile(rb"[\r\n]+")
-
-        data = bytearray()
-        while not stream.at_eof():
-            lines = pattern.split(data)
-            data[:] = lines.pop(-1)
-
-            for line in lines:
-                yield line
-
-            data.extend(await stream.read(1024))
+        for url in URL_List:
+            successful = self.execute_bbb_dl(url)
+            if successful:
+                self.add_url_to_file(url, 'successful.txt')
+            else:
+                self.add_url_to_file(url, 'failed.txt')
 
     def build_arguments(self, dl_url: str) -> List[str]:
         arguments = [self.bbb_dl_path, dl_url]
         arguments.extend(self.default_option_list)
         return arguments
 
-    def create_async_subprocess(self, *args, **kwargs) -> Process:
-        if _is_windows:
-            # https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process.send_signal
-            from subprocess import CREATE_NEW_PROCESS_GROUP
-
-            kwargs["creationflags"] = CREATE_NEW_PROCESS_GROUP
-
-        return asyncio.create_subprocess_exec(*args, **kwargs)
-
-    async def execute_bbb_dl(self, url: str) -> bool:
+    def execute_bbb_dl(self, url: str) -> bool:
         arguments = self.build_arguments(url)
 
-        self.current_process = await self.create_async_subprocess(
-            *arguments,
-            stdout=PIPE,
-        )
-
-        await asyncio.wait(
-            [
-                asyncio.create_task(self.read_stdout()),
-                asyncio.create_task(self.current_process.wait()),
-            ]
-        )
-
-        if self.current_process.returncode == 0:
-            Log.success('Completed successfully')
-            self.current_process = None
-            return True
-        else:
-            Log.error(f'Error: {self.current_process.returncode}')
-            self.current_process = None
+        try:
+            result = subprocess.run(
+                arguments,
+                check=True,
+            )
+        except CalledProcessError as err:
+            print(f"BBB-DL exited with Error: {err}")
             return False
 
-    async def read_stdout(self):
-        async for line in self.readlines(self.current_process.stdout):
-            print(line.decode("utf-8"))
-
-    def terminate(self):
-        if self.current_process is None:
-            return
-
-        sigterm = signal.SIGTERM
-        if _is_windows:
-            sigterm = signal.CTRL_BREAK_EVENT
-
-        self.current_process.send_signal(sigterm)
+        if result.returncode == 0:
+            Log.success('Completed successfully')
+            return True
+        else:
+            Log.error(f'BBB-DL failed with Error: {result.returncode}')
+            return False
 
 
 def get_parser():
