@@ -160,7 +160,7 @@ class FFMPEG:
             return True
         return False
 
-    async def create_slideshow(self, concat_file_path: str, output_path: str, width: int, height: int):
+    async def create_slideshow(self, concat_file_path: str, output_path: str):
         ffmpeg = (
             FFmpeg(self.ffmpeg_path)
             .option("hide_banner")
@@ -172,13 +172,10 @@ class FFMPEG:
             )
             .output(
                 output_path,
-                filter_complex=(
-                    f'[0:v]fps=24,scale=w={width}:h={height}:force_original_aspect_ratio=decrease,'
-                    + f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2[out]'
-                ),
-                map='[out]',
                 strict='experimental',
-                crf='22',
+                # crf='22',
+                framerate='24',
+                r='24',
                 pix_fmt='yuv420p',
                 preset=self.preset,
             )
@@ -203,7 +200,7 @@ class FFMPEG:
                 },
                 vf=(
                     f'scale=w={width}:h={height}:force_original_aspect_ratio=decrease,'
-                    + f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2'
+                    + f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=white'
                 ),
                 preset=self.preset,
             )

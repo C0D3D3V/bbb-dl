@@ -149,8 +149,9 @@ class BBBDL:
         self.dl_url = dl_url
         self.filename = filename
         self.output_dir = self.get_output_dir(output_dir)
-        self.force_width = int(force_width) if force_width is not None else None
-        self.force_height = int(force_height) if force_height is not None else None
+        self.slideshow_width = int(force_width) if force_width is not None else None
+        self.slideshow_height = int(force_height) if force_height is not None else None
+        self.slideshow_aspect_ratio = None
 
         self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset)
 
@@ -229,21 +230,20 @@ class BBBDL:
             return
 
         frames, only_zooms, partitions = self.parse_slides_data(loaded_shapes, metadata)
+
+        guessed_slideshow_width, guessed_slideshow_height = self.get_slideshow_size(only_zooms, deskshare_path)
+        if self.slideshow_width is None:
+            self.slideshow_width = guessed_slideshow_width
+        if self.slideshow_height is None:
+            self.slideshow_height = guessed_slideshow_height
+        self.slideshow_aspect_ratio = self.slideshow_width / self.slideshow_height
+
         self.create_frames(frames, only_zooms, partitions)
 
-        slideshow_width, slideshow_height = self.get_slideshow_size(only_zooms, deskshare_path)
-        if self.force_width is not None:
-            slideshow_width = self.force_width
-        if self.force_height is not None:
-            slideshow_height = self.force_height
-        slideshow_path = self.create_slideshow(frames, slideshow_width, slideshow_height)
-        slideshow_path = self.add_deskshare_to_slideshow(
-            slideshow_path, deskshare_path, deskshare_events, slideshow_width, slideshow_height, metadata
-        )
+        slideshow_path = self.create_slideshow(frames)
+        slideshow_path = self.add_deskshare_to_slideshow(slideshow_path, deskshare_path, deskshare_events, metadata)
 
-        result_path = self.final_mux(
-            slideshow_path, webcams_path, webcams_rel_path, slideshow_width, slideshow_height, metadata
-        )
+        result_path = self.final_mux(slideshow_path, webcams_path, webcams_rel_path, metadata)
 
         if not self.keep_tmp_files:
             self.remove_tmp_dir()
@@ -422,14 +422,13 @@ class BBBDL:
             browser = await p.chromium.launch()
             page = await browser.new_page()
 
+            await page.set_viewport_size({"width": int(self.slideshow_width), "height": int(self.slideshow_height)})
             await page.goto(server_url + '/shapes.svg')
             await page.wait_for_selector('#svgfile')
             # add cursor
             await page.evaluate(
                 """() => { 
                 let el = document.querySelector('#svgfile')
-                el.style.width = '100%'
-                el.style.height = '100%'
                 el.innerHTML = el.innerHTML + '<circle id="cursor" cx="9999" cy="9999" r="5" stroke="red" stroke-width="3" fill="red" style="visibility:hidden" />'
             }"""
             )
@@ -523,12 +522,26 @@ class BBBDL:
         )  # Maybe use visibility?
 
     async def set_view_box(self, page: Page, action: Action):
-        await page.set_viewport_size({"width": int(action.width), "height": int(action.height)})
+        # scale_w = ow
+        # scale_h = trunc(ow/a/2)*2
+        # abs_pos_x =  (ow-scale_w)/2
+        # abs_pos_y = (oh-scale_h)/2
+        width = self.slideshow_width
+        height = int(math.trunc(self.slideshow_width / self.slideshow_aspect_ratio / 2) * 2)
+        pos_x = int((self.slideshow_width - width) / 2)
+        pos_y = int((self.slideshow_height - height) / 2)
+
         await page.evaluate(
-            """(viewBox) => {
-                document.querySelector('#svgfile').setAttribute('viewBox', viewBox)
+            """([viewBox, width, height, pos_x, pos_y]) => {
+                let el = document.querySelector('#svgfile')
+                el.style.position = 'absolute'
+                el.style.width = width + 'px'
+                el.style.height = height + 'px'
+                el.style.left = pos_x + 'px'
+                el.style.top = pos_y + 'px'
+                el.setAttribute('viewBox', viewBox)
             }""",
-            action.value,
+            [action.value, width, height, pos_x, pos_y],
         )
 
     async def show_cursor(self, page: Page):
@@ -977,8 +990,6 @@ class BBBDL:
         slideshow_path: str,
         webcams_path: str,
         webcams_rel_path: str,
-        slideshow_width: int,
-        slideshow_height: int,
         metadata: Metadata,
     ):
 
@@ -1012,8 +1023,8 @@ class BBBDL:
                     self.ffmpeg.add_webcam_to_slideshow(
                         slideshow_path,
                         webcams_path,
-                        slideshow_width,
-                        slideshow_height,
+                        self.slideshow_width,
+                        self.slideshow_height,
                         result_path,
                     )
                 )
@@ -1026,8 +1037,6 @@ class BBBDL:
         slideshow_path: str,
         deskshare_path: str,
         deskshare_events: List[Deskshare],
-        width: int,
-        height: int,
         metadata: Metadata,
     ):
         if deskshare_path is None or len(deskshare_events) == 0:
@@ -1044,7 +1053,14 @@ class BBBDL:
             Log.warning('Resized screen share does already exist! Skipping rendering!')
         else:
             with Timer() as t:
-                asyncio.run(self.ffmpeg.resize_deskshare(deskshare_path, resized_deskshare_path, width, height))
+                asyncio.run(
+                    self.ffmpeg.resize_deskshare(
+                        deskshare_path,
+                        resized_deskshare_path,
+                        self.slideshow_width,
+                        self.slideshow_height,
+                    )
+                )
             Log.info(f'Resizing screen share finished and took: {formatSeconds(t.duration)}')
 
         Log.info('Start adding screen share to slideshow...')
@@ -1088,7 +1104,7 @@ class BBBDL:
         Log.info(f'Adding screen share to slideshow finished and took: {formatSeconds(t.duration)}')
         return presentation_path
 
-    def create_slideshow(self, frames: Dict[float, Frame], width: int, height: int):
+    def create_slideshow(self, frames: Dict[float, Frame]):
         Log.info('Start creating slideshow...')
         slideshow_path = PT.get_in_dir(self.tmp_dir, 'slideshow.mp4')
         if os.path.isfile(slideshow_path):
@@ -1107,7 +1123,7 @@ class BBBDL:
             # concat_file.write(f"file {frames[timestamps[-2]].capture_filename}\n")
 
         with Timer() as t:
-            asyncio.run(self.ffmpeg.create_slideshow(slideshow_txt_path, slideshow_path, width, height))
+            asyncio.run(self.ffmpeg.create_slideshow(slideshow_txt_path, slideshow_path))
         Log.info(f'Creating slideshow finished and took: {formatSeconds(t.duration)}')
         return slideshow_path
 
