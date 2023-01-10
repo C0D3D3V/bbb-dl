@@ -22,7 +22,7 @@ class VideoInfo:
 
 
 class FFMPEG:
-    def __init__(self, verbose: bool, ffmpeg_location: str, encoder: str, audiocodec: str, preset: str):
+    def __init__(self, verbose: bool, ffmpeg_location: str, encoder: str, audiocodec: str, preset: str, crf: int):
         self.verbose = verbose
         self.ffmpeg_path = 'ffmpeg'
         self.ffprobe_path = 'ffprobe'
@@ -51,6 +51,7 @@ class FFMPEG:
         self.encoder = encoder
         self.audiocodec = audiocodec
         self.preset = preset
+        self.crf = crf
         self.stderr_log = []
 
     def on_error(self, code: int):
@@ -172,11 +173,11 @@ class FFMPEG:
             )
             .output(
                 output_path,
-                strict='experimental',
-                # crf='22',
                 framerate='24',
                 r='24',
                 pix_fmt='yuv420p',
+                strict='experimental',
+                crf=self.crf,
                 preset=self.preset,
             )
         )
@@ -202,6 +203,8 @@ class FFMPEG:
                     f'scale=w={width}:h={height}:force_original_aspect_ratio=decrease,'
                     + f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=white'
                 ),
+                strict='experimental',
+                crf=self.crf,
                 preset=self.preset,
             )
         )
@@ -227,6 +230,7 @@ class FFMPEG:
                     'c:a': self.audiocodec,
                 },
                 strict='experimental',
+                crf=self.crf,
                 preset=self.preset,
             )
         )
@@ -275,6 +279,7 @@ class FFMPEG:
                     + '[ovrl];[1:v]fps=24,setpts=PTS-STARTPTS[bg];[bg][ovrl]overlay=W-w:H-h:shortest=1'
                 ),
                 strict='experimental',
+                crf=self.crf,
                 preset=self.preset,
             )
         )
@@ -296,6 +301,7 @@ class FFMPEG:
                 },
                 map=['0:a', '1:v'],
                 strict='experimental',
+                crf=self.crf,
                 preset=self.preset,
                 shortest=None,
             )

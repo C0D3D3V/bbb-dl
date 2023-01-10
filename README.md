@@ -37,11 +37,10 @@ Example call:
 
 `bbb-dl --skip-annotations https://your.bbb.org/playback/presentation/2.3/playback.html?meetingId=5d9100very_long_id70001800032c-160100033965`
 
-It is recommended to set the output resolution with `--force-width` and `--force-height`
 
 ```
-usage: bbb-dl [-h] [-sw] [-swfd] [-sa] [-sc] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [-f FILENAME] [-od OUTPUT_DIR]
-              [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
+usage: bbb-dl [-h] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF] [-f FILENAME]
+              [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -57,6 +56,7 @@ options:
   -sa, --skip-annotations
                         Skip capturing the annotations of the professor. This will reduce the time to generate the final video
   -sc, --skip-cursor    Skip capturing the cursor of the professor. This will reduce the time to generate the final video
+  -sz, --skip-zoom      Skip zooming into the presentation. All presentation slides are rendered in full size, which may result in sharper output video. However, consequently also to smaller font.
   -bk, --backup         Downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the video based on the saved files
   -kt, --keep-tmp-files
                         Keep the temporary files after finish. In case of an error bbb-dl will reuse the already generated files
@@ -70,6 +70,7 @@ options:
   --audiocodec AUDIOCODEC
                         Optional audiocodec to pass to ffmpeg (default copy the codec from the original source)
   --preset PRESET       Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)
+  --crf CRF             Optional crf to pass to ffmpeg (default 23, lower crf (e.g 22) usually means larger file size and better video quality)
   -f FILENAME, --filename FILENAME
                         Optional output filename
   -od OUTPUT_DIR, --output-dir OUTPUT_DIR
@@ -84,19 +85,25 @@ options:
                         Force height on final output. (e.g. 720) This can reduce the time to generate the final video
 ```
  
-**Batch processing**
+### Batch processing
 
  If you want to do batch processing you can use `bbb-dl-batch`. All passed arguments will be passed to the respective `bbb-dl`. `bbb-dl-batch` itself only needs the path to a text file in which URLs to bbb sessions are specified line by line. See `bbb-dl-batch --help` for more information.
 
  Successfully downloaded URL sessions are added to `successful.txt` in the output folder. Session URLs that could not be successfully downloaded are added to `failed.txt` in the output folder. 
 
+### The video quality is too low, how can I improve the output quality?
 
-**Alternativ downloader**
+First of all, you should check if the BBB session you downloaded really looks better in the browser than the video you created. When comparing, make sure that the presentation in the browser has the same resolution as the video. 
 
-Another bbb downloader project I would like to point out is [bbb-video-download](https://github.com/tilmanmoser/bbb-video-download)
-- It uses a clever approach written in Node.js that can be easily integrated into a bbb server
-- You can use the `--backup` option to feed `bbb-video-download`.
+Among other things, `ffmpeg` offers two options with which you can influence the output quality. You can experiment with them and see if the output improves.
 
+- `--preset` is the first of these options, it can take values from -1 to 13 or in words ultrafast, superfast, veryfast, faster, fast (default), medium, slow and veryslow. A slower encoder often delivers better quality, so try `--preset medium` to see if the quality improves.
+- `--crf` is the second of these options, it can take values from -1 to 63. A lower crf (e.g 22) usually means larger file size and better video quality, so try `--crf 22` to see if the quality improves.
+
+`bbb-dl` tries to estimate a suitable output resolution for the final video, this choice may or may not be good. You can force your own output resolution with the `--force-width` and `--force-height` options.
+
+- A high resolution would be e.g. FullHD with 1920x1080. Be warned if the slides themselves are not that large you may get blurry slides.
+- A lower resolution for faster rendering would be e.g. HD with 1280x720. It may be that the output looks sharper or less sharp, test it yourself.
 
 ### How can I speed up the rendering process?
 
@@ -111,6 +118,13 @@ For example, if you have an **Nvidia** graphics card installed on a computer, yo
 - For AMD CPUs / GPUs, you can try the encoder `h264_amf` (Use the option `--encoder h264_amf`).
 
 > You have to test yourself if it is faster to use your hardware encoder or not. In some cases, hardware encoders are slower than using the CPU directly. 
+
+
+### Alternativ downloader
+
+Another bbb downloader project I would like to point out is [bbb-video-download](https://github.com/tilmanmoser/bbb-video-download)
+- It uses a clever approach written in Node.js that can be easily integrated into a bbb server
+- You can use the `--backup` option to feed `bbb-video-download`.
 
 
 ### License

@@ -30,6 +30,7 @@ class BatchProcessor:
         skip_webcam_freeze_detection: bool,
         skip_annotations: bool,
         skip_cursor: bool,
+        skip_zoom: bool,
         keep_tmp_files: bool,
         ffmpeg_location: str,
         working_dir: str,
@@ -38,6 +39,7 @@ class BatchProcessor:
         force_width: int,
         force_height: int,
         preset: str,
+        crf: int,
     ):
         self.bbb_dl_path = bbb_dl_path
         option_list = []
@@ -45,6 +47,7 @@ class BatchProcessor:
         self.add_bool_option(option_list, '--skip-webcam-freeze-detection', skip_webcam_freeze_detection)
         self.add_bool_option(option_list, '--skip-annotations', skip_annotations)
         self.add_bool_option(option_list, '--skip-cursor', skip_cursor)
+        self.add_bool_option(option_list, '--skip-zoom', skip_zoom)
         self.add_bool_option(option_list, '--backup', backup)
         self.add_bool_option(option_list, '--verbose', verbose)
         self.add_bool_option(option_list, '--no-check-certificate', no_check_certificate)
@@ -58,6 +61,7 @@ class BatchProcessor:
         self.add_value_option(option_list, '--force-width', force_width)
         self.add_value_option(option_list, '--force-height', force_height)
         self.add_value_option(option_list, '--preset', preset)
+        self.add_value_option(option_list, '--crf', crf)
         self.default_option_list = option_list
         self.dl_urls_file_path = dl_urls_file_path
 
@@ -187,19 +191,26 @@ def get_parser():
         help='Skip detecting if the webcam video is completely empty.'
         + ' It is assumed the webcam recordings are not empty.',
     )
-
     parser.add_argument(
         '-sa',
         '--skip-annotations',
         action='store_true',
         help='Skip capturing the annotations of the professor',
     )
-
     parser.add_argument(
         '-sc',
         '--skip-cursor',
         action='store_true',
         help='Skip capturing the cursor of the professor',
+    )
+    parser.add_argument(
+        '-sz',
+        '--skip-zoom',
+        action='store_true',
+        help=(
+            'Skip zooming into the presentations. All presentation slides are rendered in full size,'
+            + ' which may result in sharper output videos. However, consequently also to smaller font.'
+        ),
     )
 
     parser.add_argument(
@@ -272,6 +283,16 @@ def get_parser():
         default='fast',
         help='Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)',
     )
+    parser.add_argument(
+        '--crf',
+        dest='crf',
+        type=int,
+        default=23,
+        help=(
+            'Optional crf to pass to ffmpeg'
+            + ' (default 23, lower crf (e.g 22) usually means larger file size and better video quality)'
+        ),
+    )
 
     parser.add_argument(
         '-od',
@@ -335,6 +356,7 @@ def main(args=None):
             args.skip_webcam_freeze_detection,
             args.skip_annotations,
             args.skip_cursor,
+            args.skip_zoom,
             args.keep_tmp_files,
             args.ffmpeg_location,
             args.working_dir,
@@ -343,5 +365,6 @@ def main(args=None):
             args.force_width,
             args.force_height,
             args.preset,
+            args.crf,
         ).run()
     Log.info(f'BBB-DL finished and took: {formatSeconds(final_t.duration)}')

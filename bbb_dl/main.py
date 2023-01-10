@@ -121,6 +121,7 @@ class BBBDL:
         skip_webcam_freeze_detection: bool,
         skip_annotations: bool,
         skip_cursor: bool,
+        skip_zoom: bool,
         keep_tmp_files: bool,
         ffmpeg_location: str,
         working_dir: str,
@@ -129,12 +130,14 @@ class BBBDL:
         force_width: int,
         force_height: int,
         preset: str,
+        crf: str,
     ):
         # Rendering options
         self.skip_webcam_opt = skip_webcam
         self.skip_webcam_freeze_detection_opt = skip_webcam_freeze_detection
         self.skip_annotations_opt = skip_annotations
         self.skip_cursor_opt = skip_cursor
+        self.skip_zoom_opt = skip_zoom
         # BBB-dl Options
         self.keep_tmp_files = keep_tmp_files
         self.backup = backup
@@ -152,7 +155,7 @@ class BBBDL:
         self.slideshow_width = int(force_width) if force_width is not None else None
         self.slideshow_height = int(force_height) if force_height is not None else None
 
-        self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset)
+        self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset, crf)
 
         # Check DL-URL
         m_obj = re.match(self.VALID_URL_RE, self.dl_url)
@@ -230,11 +233,14 @@ class BBBDL:
 
         frames, only_zooms, partitions = self.parse_slides_data(loaded_shapes, metadata)
 
-        guessed_slideshow_width, guessed_slideshow_height = self.get_slideshow_size(only_zooms, deskshare_path)
-        if self.slideshow_width is None:
-            self.slideshow_width = guessed_slideshow_width
-        if self.slideshow_height is None:
-            self.slideshow_height = guessed_slideshow_height
+        if self.slideshow_width is None and self.slideshow_height is None:
+            guessed_slideshow_width, guessed_slideshow_height = self.get_slideshow_size(
+                only_zooms, deskshare_path, loaded_shapes
+            )
+            if self.slideshow_width is None:
+                self.slideshow_width = guessed_slideshow_width
+            if self.slideshow_height is None:
+                self.slideshow_height = guessed_slideshow_height
 
         self.create_frames(frames, only_zooms, partitions)
 
@@ -272,7 +278,7 @@ class BBBDL:
         result_list = sorted(result_list, key=lambda item: item.start_timestamp)
         return result_list
 
-    def get_slideshow_size(self, only_zooms: Dict[float, Frame], deskshare_path: str):
+    def get_slideshow_size(self, only_zooms: Dict[float, Frame], deskshare_path: str, loaded_shapes: Element):
         widths = []
         heights = []
         if deskshare_path is not None:
@@ -398,6 +404,8 @@ class BBBDL:
         async with semaphore, async_playwright() as p:
             first_timestamp = partition[0]
             last_timestamp = partition[1]
+
+            # Check if partition is already done
             partition_already_done = True
             total_frames_in_partition = 0
             for timestamp, frame in frames.items():
@@ -431,6 +439,7 @@ class BBBDL:
             }"""
             )
             current_view_box = None
+            # Set initial view box for this partition
             for timestamp, frame in only_zooms.items():
                 if timestamp > first_timestamp:
                     continue
@@ -520,11 +529,6 @@ class BBBDL:
         )  # Maybe use visibility?
 
     async def set_view_box(self, page: Page, action: Action):
-        # scale_w = ow
-        # scale_h = trunc(ow/a/2)*2
-        # abs_pos_x =  (ow-scale_w)/2
-        # abs_pos_y = (oh-scale_h)/2
-
         # First try to use whole slideshow width
         aspect_ratio = action.width / action.height
         width = self.slideshow_width
@@ -536,6 +540,7 @@ class BBBDL:
             height = self.slideshow_height
             width = int(math.trunc(height / aspect_ratio / 2) * 2)
 
+        # Center the slide on the screen
         pos_x = int((self.slideshow_width - width) / 2)
         pos_y = int((self.slideshow_height - height) / 2)
         await page.evaluate(
@@ -574,7 +579,7 @@ class BBBDL:
             [x, y],
         )
 
-    def get_all_image_urls(self, loaded_shapes: Element) -> List[str]:
+    def get_all_image_urls(self, loaded_shapes: Element) -> (List[str], List[Tuple[int]]):
         image_urls = []
         shapes_images = loaded_shapes.findall(_s(".//svg:image"))
         for image in shapes_images:
@@ -617,8 +622,10 @@ class BBBDL:
 
         only_zooms = {}
         loaded_zooms = self.load_xml('panzooms.xml', False)
-        if loaded_zooms is not None:
+        if loaded_zooms is not None and not self.skip_zoom_opt:
             self.parse_zooms(loaded_zooms, frames, only_zooms, metadata.duration)
+        elif self.skip_zoom_opt:
+            self.mock_zooms(loaded_shapes, frames, only_zooms, metadata.duration)
 
         if not self.skip_cursor_opt:
             loaded_cursors = self.load_xml('cursor.xml', False)
@@ -731,6 +738,30 @@ class BBBDL:
                 )
                 self.get_frame_by_timestamp(frames, zoom_in).actions.append(zoom_action)
                 self.get_frame_by_timestamp(only_zooms, zoom_in).actions.append(zoom_action)
+
+    def mock_zooms(
+        self,
+        loaded_shapes: Element,
+        frames: Dict[float, Frame],
+        only_zooms: Dict[float, Frame],
+        recording_duration: float,
+    ):
+        slides = loaded_shapes.findall(_s("./svg:image[@class='slide']"))
+        for image in slides:
+            image_in = float(image.get('in'))
+            image_width = int(float(image.get('width')))
+            image_height = int(float(image.get('height')))
+            if image_in < recording_duration:
+                zoom_action = Action(
+                    action_type=ActionType.set_view_box,
+                    value=f"0 0 {image_width} {image_height}",
+                    x=0,
+                    y=0,
+                    width=image_width,
+                    height=image_height,
+                )
+                self.get_frame_by_timestamp(frames, image_in).actions.append(zoom_action)
+                self.get_frame_by_timestamp(only_zooms, image_in).actions.append(zoom_action)
 
     def parse_cursors(self, loaded_cursors: Element, frames: Dict[float, Frame], recording_duration: float):
         cursors = loaded_cursors.findall("./event[@timestamp]")
@@ -1159,19 +1190,26 @@ def get_parser():
         help='Skip detecting if the webcam video is completely empty.'
         + ' It is assumed the webcam recording is not empty. This will reduce the time to generate the final video',
     )
-
     parser.add_argument(
         '-sa',
         '--skip-annotations',
         action='store_true',
         help='Skip capturing the annotations of the professor. This will reduce the time to generate the final video',
     )
-
     parser.add_argument(
         '-sc',
         '--skip-cursor',
         action='store_true',
         help='Skip capturing the cursor of the professor. This will reduce the time to generate the final video',
+    )
+    parser.add_argument(
+        '-sz',
+        '--skip-zoom',
+        action='store_true',
+        help=(
+            'Skip zooming into the presentation. All presentation slides are rendered in full size,'
+            + ' which may result in sharper output video. However, consequently also to smaller font.'
+        ),
     )
 
     parser.add_argument(
@@ -1244,6 +1282,16 @@ def get_parser():
         default='fast',
         help='Optional preset to pass to ffmpeg (default fast, a preset that can be used with all encoders)',
     )
+    parser.add_argument(
+        '--crf',
+        dest='crf',
+        type=int,
+        default=23,
+        help=(
+            'Optional crf to pass to ffmpeg'
+            + ' (default 23, lower crf (e.g 22) usually means larger file size and better video quality)'
+        ),
+    )
 
     parser.add_argument(
         '-f',
@@ -1315,6 +1363,7 @@ def main(args=None):
             args.skip_webcam_freeze_detection,
             args.skip_annotations,
             args.skip_cursor,
+            args.skip_zoom,
             args.keep_tmp_files,
             args.ffmpeg_location,
             args.working_dir,
@@ -1323,5 +1372,6 @@ def main(args=None):
             args.force_width,
             args.force_height,
             args.preset,
+            args.crf,
         ).run()
     Log.info(f'BBB-DL finished and took: {formatSeconds(final_t.duration)}')
