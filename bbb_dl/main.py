@@ -286,10 +286,17 @@ class BBBDL:
             widths.append(video_info.width)
             heights.append(video_info.height)
 
-        for _, frame in only_zooms.items():
-            action = frame.actions[0]
-            widths.append(int(action.width))
-            heights.append(int(action.height))
+        if self.skip_zoom_opt:
+            # Use slides sizes as frame resolution
+            slides_widths, slides_heights = self.get_all_slide_sizes(loaded_shapes)
+            widths.extend(slides_widths)
+            heights.extend(slides_heights)
+        else:
+            # Use zoom view box size as frame resolution
+            for _, frame in only_zooms.items():
+                action = frame.actions[0]
+                widths.append(int(action.width))
+                heights.append(int(action.height))
 
         if len(widths) == 0 or len(heights) == 0:
             return
@@ -445,7 +452,9 @@ class BBBDL:
                     continue
                 # We only set one initial ViewBox, the first we find before the partition
                 current_view_box = frame.actions[0]
-                await self.set_view_box(page, current_view_box)
+                if not self.skip_zoom_opt:
+                    # Use this view box only if we want to zoom
+                    await self.set_view_box(page, current_view_box)
                 break
             for timestamp, frame in frames.items():
                 if timestamp > last_timestamp:
@@ -456,6 +465,17 @@ class BBBDL:
                     if action.action_type == ActionType.show_image:
                         await self.show_image(page, action)
                         await self.show_cursor(page)
+                        if self.skip_zoom_opt:
+                            # Use custom view box if we do not want to zoom
+                            zoom_action = Action(
+                                action_type=ActionType.set_view_box,
+                                value=f"0 0 {action.width} {action.height}",
+                                x=0,
+                                y=0,
+                                width=action.width,
+                                height=action.height,
+                            )
+                            await self.set_view_box(page, zoom_action)
                     elif action.action_type == ActionType.hide_image:
                         await self.hide_image(page, action)
                         await self.hide_cursor(page)
@@ -465,7 +485,9 @@ class BBBDL:
                         await self.hide_drawing(page, action)
                     elif action.action_type == ActionType.set_view_box:
                         current_view_box = action
-                        await self.set_view_box(page, action)
+                        if not self.skip_zoom_opt:
+                            # Use this view box only if we want to zoom
+                            await self.set_view_box(page, action)
                     elif action.action_type == ActionType.move_cursor:
                         if current_view_box is None:
                             Log.warning('No ViewBox, cursor position unclear!')
@@ -588,6 +610,17 @@ class BBBDL:
                 image_urls.append(image_rel_path)
         return image_urls
 
+    def get_all_slide_sizes(self, loaded_shapes: Element) -> (List[int], List[int]):
+        widths = []
+        heights = []
+        slides = loaded_shapes.findall(_s("./svg:image[@class='slide']"))
+        for image in slides:
+            image_width = int(float(image.get('width')))
+            image_height = int(float(image.get('height')))
+            widths.append(image_width)
+            heights.append(image_height)
+        return widths, heights
+
     def parse_metadata(self) -> Metadata:
         loaded_metadata = self.load_xml('metadata.xml')
 
@@ -622,10 +655,8 @@ class BBBDL:
 
         only_zooms = {}
         loaded_zooms = self.load_xml('panzooms.xml', False)
-        if loaded_zooms is not None and not self.skip_zoom_opt:
+        if loaded_zooms is not None:
             self.parse_zooms(loaded_zooms, frames, only_zooms, metadata.duration)
-        elif self.skip_zoom_opt:
-            self.mock_zooms(loaded_shapes, frames, only_zooms, metadata.duration)
 
         if not self.skip_cursor_opt:
             loaded_cursors = self.load_xml('cursor.xml', False)
@@ -738,30 +769,6 @@ class BBBDL:
                 )
                 self.get_frame_by_timestamp(frames, zoom_in).actions.append(zoom_action)
                 self.get_frame_by_timestamp(only_zooms, zoom_in).actions.append(zoom_action)
-
-    def mock_zooms(
-        self,
-        loaded_shapes: Element,
-        frames: Dict[float, Frame],
-        only_zooms: Dict[float, Frame],
-        recording_duration: float,
-    ):
-        slides = loaded_shapes.findall(_s("./svg:image[@class='slide']"))
-        for image in slides:
-            image_in = float(image.get('in'))
-            image_width = int(float(image.get('width')))
-            image_height = int(float(image.get('height')))
-            if image_in < recording_duration:
-                zoom_action = Action(
-                    action_type=ActionType.set_view_box,
-                    value=f"0 0 {image_width} {image_height}",
-                    x=0,
-                    y=0,
-                    width=image_width,
-                    height=image_height,
-                )
-                self.get_frame_by_timestamp(frames, image_in).actions.append(zoom_action)
-                self.get_frame_by_timestamp(only_zooms, image_in).actions.append(zoom_action)
 
     def parse_cursors(self, loaded_cursors: Element, frames: Dict[float, Frame], recording_duration: float):
         cursors = loaded_cursors.findall("./event[@timestamp]")
