@@ -127,6 +127,7 @@ Another bbb downloader project I would like to point out is [bbb-video-download]
 - It uses a clever approach written in Node.js that can be easily integrated into a bbb server
 - You can use the `--backup` option to feed `bbb-video-download`.
 
+If someone wants to link another downloader here, which offers e.g. functions that bbb-dl does not offer, feel free to open an issue. 
 
 ### License
 This project is licensed under the terms of the *MIT License*. For further information, please look [here](LICENSE).

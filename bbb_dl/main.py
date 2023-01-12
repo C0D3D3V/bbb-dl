@@ -186,7 +186,18 @@ class BBBDL:
         _ = asyncio.run(self.batch_download_from_bbb(dl_jobs))
 
         Log.info("Downloading webcams / deskshare")
-        dl_jobs = ['cursor.xml', 'panzooms.xml', 'captions.json', 'deskshare.xml', 'events.xml']
+        dl_jobs = [
+            'cursor.xml',
+            'panzooms.xml',
+            'captions.json',
+            'deskshare.xml',
+            'events.xml',
+            'presentation_text.json',
+            'slides_new.xml',
+            'notes.html',
+            'polls.json',
+            'external_videos.json',
+        ]
         cam_webm_idx = append_get_idx(dl_jobs, 'video/webcams.webm')
         cam_mp4_idx = append_get_idx(dl_jobs, 'video/webcams.mp4')
         dsk_webm_idx = append_get_idx(dl_jobs, 'deskshare/deskshare.webm')
