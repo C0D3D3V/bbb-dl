@@ -18,7 +18,7 @@ from itertools import cycle
 from pathlib import Path
 from threading import Thread
 from typing import List, Dict, Any, Tuple
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import ParseError, Element
 
 import aiohttp
@@ -254,6 +254,41 @@ class BBBDL:
         else:
             Log.warning(f'Temporary directory will not be deleted: {self.tmp_dir}')
         Log.success(f'All done! Final video: {result_path}')
+
+    def run_audio_only(self):
+        if not self.backup:
+            Log.yellow(f'Output directory for the final audio is: {self.output_dir}')
+            Log.yellow(f'Directory for the temporary files is: {self.tmp_dir}')
+        else:
+            Log.error('Please use the backup option only without the audio only mode')
+            exit(-11)
+
+        Log.info("Downloading meta information")
+
+        dl_jobs = ['metadata.xml']
+        _ = asyncio.run(self.batch_download_from_bbb(dl_jobs))
+
+        Log.info("Downloading webcams file")
+        dl_jobs = []
+        cam_webm_idx = append_get_idx(dl_jobs, 'video/webcams.webm')
+        cam_mp4_idx = append_get_idx(dl_jobs, 'video/webcams.mp4')
+
+        dl_results = asyncio.run(self.batch_download_from_bbb(dl_jobs, False))
+
+        if not dl_results[cam_webm_idx] and not dl_results[cam_mp4_idx]:
+            Log.error('Error: webcams video is essential. Abort! Please try again later!')
+            exit(4)
+        webcams_rel_path = 'video/webcams.webm' if dl_results[cam_webm_idx] else 'video/webcams.mp4'
+        webcams_path = PT.get_in_dir(self.tmp_dir, webcams_rel_path)
+
+        metadata = self.parse_metadata()
+        result_path = self.extract_audio(webcams_path, metadata)
+
+        if not self.keep_tmp_files:
+            self.remove_tmp_dir()
+        else:
+            Log.warning(f'Temporary directory will not be deleted: {self.tmp_dir}')
+        Log.success(f'All done! Final audio: {result_path}')
 
     def parse_deskshare_data(self, recording_duration) -> List[Deskshare]:
         result_list = []
@@ -796,6 +831,14 @@ class BBBDL:
                 Path(self.output_dir) / PT.to_valid_name(metadata.date_formatted + '_' + metadata.title + '.mp4')
             )
 
+    def get_output_audio_file_path(self, metadata: Metadata):
+        if self.filename is not None:
+            return str(Path(self.output_dir) / PT.to_valid_name(self.filename))
+        else:
+            return str(
+                Path(self.output_dir) / PT.to_valid_name(metadata.date_formatted + '_' + metadata.title + '.mp3')
+            )
+
     def get_output_dir(
         self,
         output_dir: str,
@@ -1014,7 +1057,7 @@ class BBBDL:
         local_path = PT.get_in_dir(self.tmp_dir, rel_file_path)
         if os.path.exists(local_path):
             try:
-                tree_root = ElementTree.parse(local_path).getroot()
+                tree_root = ET.parse(local_path).getroot()
                 return tree_root
             except ParseError as err:
                 Log.error(f'Unable to parse XML file "{local_path}": {str(err)}')
@@ -1172,6 +1215,21 @@ class BBBDL:
         Log.info(f'Creating slideshow finished and took: {formatSeconds(t.duration)}')
         return slideshow_path
 
+    def extract_audio(
+        self,
+        webcams_path: str,
+        metadata: Metadata,
+    ):
+        Log.info('Start extracting audio...')
+        result_path = self.get_output_audio_file_path(metadata)
+        if os.path.isfile(result_path):
+            Log.warning('Final Audio already exists. Abort!')
+            return result_path
+        with Timer() as t:
+            asyncio.run(self.ffmpeg.extract_audio(webcams_path, result_path))
+        Log.info(f'Extracting audio finished and took: {formatSeconds(t.duration)}')
+        return result_path
+
 
 def get_parser():
     """
@@ -1182,6 +1240,13 @@ def get_parser():
     )
 
     parser.add_argument('URL', type=str, help='URL of a BBB lesson')
+
+    parser.add_argument(
+        '-ao',
+        '--audio-only',
+        action='store_true',
+        help='Extract only the audio from the presentation, do not generate video.',
+    )
 
     parser.add_argument(
         '-sw',
@@ -1358,7 +1423,7 @@ def main(args=None):
     args = parser.parse_args(args)
 
     with Timer() as final_t:
-        BBBDL(
+        bbb_dl = BBBDL(
             args.URL,
             args.filename,
             args.output_dir,
@@ -1380,5 +1445,9 @@ def main(args=None):
             args.force_height,
             args.preset,
             args.crf,
-        ).run()
+        )
+        if args.audio_only:
+            bbb_dl.run_audio_only()
+        else:
+            bbb_dl.run()
     Log.info(f'BBB-DL finished and took: {formatSeconds(final_t.duration)}')

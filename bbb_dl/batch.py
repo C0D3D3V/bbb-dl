@@ -26,6 +26,7 @@ class BatchProcessor:
         no_check_certificate: bool,
         encoder: str,
         audiocodec: str,
+        audio_only: bool,
         skip_webcam: bool,
         skip_webcam_freeze_detection: bool,
         skip_annotations: bool,
@@ -43,6 +44,7 @@ class BatchProcessor:
     ):
         self.bbb_dl_path = bbb_dl_path
         option_list = []
+        self.add_bool_option(option_list, '--audio-only', audio_only)
         self.add_bool_option(option_list, '--skip-webcam', skip_webcam)
         self.add_bool_option(option_list, '--skip-webcam-freeze-detection', skip_webcam_freeze_detection)
         self.add_bool_option(option_list, '--skip-annotations', skip_annotations)
@@ -171,13 +173,19 @@ def get_parser():
     )
 
     parser.add_argument(
+        '-ao',
+        '--audio-only',
+        action='store_true',
+        help='Extract only the audio from the presentations, do not generate videos.',
+    )
+
+    parser.add_argument(
         '-bp',
         '--bbb-dl-path',
         type=str,
         default='bbb-dl',
         help='Path to bbb-dl. Use it if bbb-dl is not in your system PATH',
     )
-
     parser.add_argument(
         '-sw',
         '--skip-webcam',
@@ -352,6 +360,7 @@ def main(args=None):
             args.no_check_certificate,
             args.encoder,
             args.audiocodec,
+            args.audio_only,
             args.skip_webcam,
             args.skip_webcam_freeze_detection,
             args.skip_annotations,

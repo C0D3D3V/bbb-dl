@@ -309,3 +309,20 @@ class FFMPEG:
         self.add_standard_handlers(ffmpeg)
 
         await ffmpeg.execute()
+
+    async def extract_audio(self, webcams_path: str, result_path: str):
+        ffmpeg = (
+            FFmpeg(self.ffmpeg_path)
+            .option("hide_banner")
+            .input(webcams_path)
+            .output(
+                result_path,
+                {
+                    'codec:a': 'libmp3lame',
+                    'qscale:a': 2,
+                },
+            )
+        )
+        self.add_standard_handlers(ffmpeg)
+
+        await ffmpeg.execute()

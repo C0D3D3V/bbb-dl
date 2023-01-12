@@ -35,12 +35,12 @@ If you ever need to update `bbb-dl` run: `pip install -U bbb-dl`
 
 Example call:
 
-`bbb-dl --skip-annotations https://your.bbb.org/playback/presentation/2.3/playback.html?meetingId=5d9100very_long_id70001800032c-160100033965`
+`bbb-dl --skip-cursor https://your.bbb.org/playback/presentation/2.3/playback.html?meetingId=5d9100very_long_id70001800032c-160100033965`
 
 
 ```
-usage: bbb-dl [-h] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF] [-f FILENAME]
-              [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
+usage: bbb-dl [-h] [-ao] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF]
+              [-f FILENAME] [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -50,6 +50,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  -ao, --audio-only     Extract only the audio from the presentation, do not generate video.
   -sw, --skip-webcam    Skip adding the webcam video as an overlay to the final video. This will reduce the time to generate the final video
   -swfd, --skip-webcam-freeze-detection
                         Skip detecting if the webcam video is completely empty. It is assumed the webcam recording is not empty. This will reduce the time to generate the final video
