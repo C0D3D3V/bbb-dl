@@ -121,11 +121,15 @@ For example, if you have an **Nvidia** graphics card installed on a computer, yo
 > You have to test yourself if it is faster to use your hardware encoder or not. In some cases, hardware encoders are slower than using the CPU directly. 
 
 
-### Alternativ downloader
+### Other downloader
 
-Another bbb downloader project I would like to point out is [bbb-video-download](https://github.com/tilmanmoser/bbb-video-download)
+[bbb-video-download](https://github.com/tilmanmoser/bbb-video-download) 
 - It uses a clever approach written in Node.js that can be easily integrated into a bbb server
 - You can use the `--backup` option to feed `bbb-video-download`.
+
+[bbb-download](https://github.com/fossasia/bbb-download)
+- Takes advantage of the fact that you can use the bbb-player to play the session data offline.
+- Instead of creating a video file, this downloader downloads only the necessary files from the server, so you can use the bbb-player to play the session offline. The player is provided to you via shortcut.
 
 If someone wants to link another downloader here, which offers e.g. functions that bbb-dl does not offer, feel free to open an issue. 
 
