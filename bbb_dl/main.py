@@ -407,15 +407,17 @@ class BBBDL:
         status_dict: Dict,
     ):
         semaphore = asyncio.Semaphore(self.max_parallel_chromes)
+        gather_jobs = asyncio.gather(
+            *[
+                self.capture_frames(server_url, frames, only_zooms, partition, semaphore, status_dict)
+                for partition in partitions
+            ]
+        )
         try:
-            await asyncio.gather(
-                *[
-                    self.capture_frames(server_url, frames, only_zooms, partition, semaphore, status_dict)
-                    for partition in partitions
-                ]
-            )
+            await gather_jobs
         except Exception:
             traceback.print_exc()
+            gather_jobs.cancel()
             Log.error(
                 'Unexpected Error! Press Ctr+C to exit.'
                 + ' Please try to set a low number of threads with `--max-parallel-chromes`.'
@@ -922,20 +924,6 @@ class BBBDL:
         assert not rel_file_path.startswith('/') and not rel_file_path.startswith('\\')
         return self.presentation_base_url + '/' + rel_file_path
 
-    async def readexactly(self, steam, n):
-        if steam._exception is not None:
-            raise steam._exception
-
-        blocks = []
-        while n > 0:
-            block = await steam.read(n)
-            if not block:
-                break
-            blocks.append(block)
-            n -= len(block)
-
-        return b''.join(blocks)
-
     async def get_can_continue_on_fail(self, url, session):
         try:
             headers = self.headers.copy()
@@ -1017,14 +1005,14 @@ class BBBDL:
                                     f"Server did not response for {rel_file_path} with requested range data"
                                 )
                             file_obj = file_obj or await aiofiles.open(local_path, "wb")
-                            chunk = await self.readexactly(resp.content, 1024000)
+                            chunk = await resp.content.read(1024 * 10)
                             chunk_idx = 0
                             while chunk:
                                 received += len(chunk)
-                                if chunk_idx % 10 == 0:
+                                if chunk_idx % 100 == 0:
                                     Log.info(f"{rel_file_path} got {format_bytes(received)} / {format_bytes(total)}")
                                 await file_obj.write(chunk)
-                                chunk = await self.readexactly(resp.content, 1024000)
+                                chunk = await resp.content.read(1024 * 10)
                                 chunk_idx += 1
 
                         if self.verbose:
