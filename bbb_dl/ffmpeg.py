@@ -7,10 +7,10 @@ from subprocess import CalledProcessError
 from typing import List
 from itertools import cycle
 
-from ffmpeg import FFmpeg
-from ffmpeg.utils import Progress
+from ffmpeg.asyncio import FFmpeg
+from ffmpeg import Progress
 
-from bbb_dl.utils import PathTools as PT, Log
+from bbb_dl.utils import PathTools as PT, Log, formatSeconds
 
 
 @dataclass
@@ -73,7 +73,9 @@ class FFMPEG:
 
     def on_progress(self, progress: Progress):
         print(
-            f"\r\033[K{progress} {next(self.spinner)}",
+            f'\r\033[KFrame: {progress.frame} FPS: {progress.fps} Size: {progress.size}'
+            + f' Time: {formatSeconds(progress.time.total_seconds())} Bitrate: {progress.bitrate}'
+            + f' Speed: {progress.speed}x {next(self.spinner)}',
             end='',
         )
 

@@ -91,6 +91,10 @@ class Deskshare:
     height: int
 
 
+class ContentRangeError(ConnectionError):
+    pass
+
+
 class BBBDL:
     VALID_URL_RE = re.compile(
         r'''(?x)
@@ -987,11 +991,12 @@ class BBBDL:
                     try:
                         if tries_num > 0 and can_continue_on_fail:
                             headers["Range"] = f"bytes={received}-"
+                        elif not can_continue_on_fail and 'Range' in headers:
+                            del headers['Range']
                         ssl_param = False if self.no_check_certificate else None
                         async with session.request(
                             "GET", dl_url, headers=headers, raise_for_status=True, ssl=ssl_param
                         ) as resp:
-
                             # Download the file.
                             total = int(resp.headers.get("Content-Length", 0))
                             content_range = resp.headers.get("Content-Range", "")  # Example: bytes 200-1000/67589
@@ -1001,7 +1006,7 @@ class BBBDL:
                                     Log.debug(f"Warning {rel_file_path} got status {resp.status}")
 
                             if tries_num > 0 and can_continue_on_fail and not content_range and resp.status != 206:
-                                raise ClientError(
+                                raise ContentRangeError(
                                     f"Server did not response for {rel_file_path} with requested range data"
                                 )
                             file_obj = file_obj or await aiofiles.open(local_path, "wb")
@@ -1023,21 +1028,29 @@ class BBBDL:
                         finished_successfully = True
                         break
 
-                    except (ClientError, OSError, ValueError) as err:
+                    except (ClientError, OSError, ValueError, ContentRangeError) as err:
                         if tries_num == 0:
                             can_continue_on_fail = await self.get_can_continue_on_fail(dl_url, session)
-                        if not can_continue_on_fail:
+                        if (not can_continue_on_fail and received > 0) or isinstance(err, ContentRangeError):
+                            can_continue_on_fail = False
                             # Clean up failed file because we can not recover
                             if file_obj is not None:
-                                file_obj.close()
+                                await file_obj.close()
+                                file_obj = None
                             if os.path.exists(local_path):
                                 os.unlink(local_path)
+                            received = 0
 
-                        if isinstance(err, ClientResponseError) and err.status == 404 and not is_essential:
-                            Log.info(f'{rel_file_path} could not be downloaded: {err.status} {err.message}')
-                            if self.verbose:
-                                Log.info(f'Error: {str(err)}')
-                            break
+                        if isinstance(err, ClientResponseError):
+                            if err.status in [408, 409, 429]:   # pylint: disable=no-member
+                                # 408 (timeout) or 409 (conflict) and 429 (too many requests)
+                                # Retry after 1 sec
+                                await asyncio.sleep(1)
+                            else:
+                                Log.info(f'{rel_file_path} could not be downloaded: {err.status} {err.message}')
+                                if self.verbose:
+                                    Log.info(f'Error: {str(err)}')
+                                break
 
                         if self.verbose:
                             Log.warning(
@@ -1047,8 +1060,10 @@ class BBBDL:
                         tries_num += 1
 
             if file_obj is not None:
-                file_obj.close()
+                await file_obj.close()
             if not finished_successfully:
+                if os.path.exists(local_path):
+                    os.unlink(local_path)
                 return False
             return True
 
@@ -1079,7 +1094,6 @@ class BBBDL:
         webcams_rel_path: str,
         metadata: Metadata,
     ):
-
         webcam_is_empty = False
         if not self.skip_webcam_opt and not self.skip_webcam_freeze_detection_opt:
             Log.info(f'Try to detect freeze in {webcams_rel_path}...')

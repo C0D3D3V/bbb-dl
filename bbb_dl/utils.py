@@ -220,7 +220,7 @@ class Log:
         print(Log.magenta_str(logString))
 
 
-class Timer(object):
+class Timer:
     '''
     Timing Context Manager
     Can be used for future speed comparisons, like this:
@@ -230,13 +230,25 @@ class Timer(object):
     print(f'Do.stuff() took:\t {t.duration:.3f} \tseconds.')
     '''
 
+    def __init__(self, nanoseconds=False):
+        self.start = 0.0
+        self.duration = 0.0
+        self.nanoseconds = nanoseconds
+
     def __enter__(self):
-        self.start = time.perf_counter_ns()
+        if self.nanoseconds:
+            self.start = time.perf_counter_ns()
+        else:
+            self.start = time.time()
         return self
 
     def __exit__(self, *args):
-        end = time.perf_counter_ns()
-        self.duration = (end - self.start) * 10**-9  # 1 nano-sec = 10^-9 sec
+        if self.nanoseconds:
+            end = time.perf_counter_ns()
+            self.duration = (end - self.start) * 10**-9  # 1 nano-sec = 10^-9 sec
+        else:
+            end = time.time()
+            self.duration = end - self.start
 
 
 NO_DEFAULT = object()
