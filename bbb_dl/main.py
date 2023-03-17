@@ -37,6 +37,7 @@ from bbb_dl.utils import (
     format_bytes,
     formatSeconds,
     get_free_port,
+    KNOWN_VIDEO_AUDIO_EXTENSIONS,
     Log,
     PathTools as PT,
     QuietRequestHandler,
@@ -730,18 +731,10 @@ class BBBDL:
     def parse_slide_partitions(self, loaded_shapes: Element, recording_duration: float) -> List[Tuple]:
         partitions = []
         slides = loaded_shapes.findall(_s("./svg:image[@class='slide']"))
-        partition_start = None
-        last_slide_idx = len(slides) - 1
-        for idx, image in enumerate(slides):
-            image_id = image.get('id')
+        for image in slides:
             image_in = float(image.get('in'))
             image_out = float(image.get('out'))
-            got_annotations = loaded_shapes.find(_s(f"./svg:g[@image='{image_id}']")) is not None
-            if partition_start is None:
-                partition_start = image_in
-            if idx == last_slide_idx or got_annotations:
-                partitions.append((partition_start, image_out))
-                partition_start = None
+            partitions.append((image_in, image_out))
         return partitions
 
     def parse_images(self, loaded_shapes: Element, frames: Dict[float, Frame], recording_duration: float):
@@ -842,6 +835,9 @@ class BBBDL:
 
     def get_output_file_path(self, metadata: Metadata):
         if self.filename is not None:
+            file_ext = PT.get_file_ext(self.filename)
+            if file_ext is None or file_ext not in KNOWN_VIDEO_AUDIO_EXTENSIONS:
+                self.filename += '.mp4'
             return str(Path(self.output_dir) / PT.to_valid_name(self.filename))
         else:
             return str(
@@ -850,6 +846,9 @@ class BBBDL:
 
     def get_output_audio_file_path(self, metadata: Metadata):
         if self.filename is not None:
+            file_ext = PT.get_file_ext(self.filename)
+            if file_ext is None or file_ext not in KNOWN_VIDEO_AUDIO_EXTENSIONS:
+                self.filename += '.mp3'
             return str(Path(self.output_dir) / PT.to_valid_name(self.filename))
         else:
             return str(
@@ -1042,7 +1041,7 @@ class BBBDL:
                             received = 0
 
                         if isinstance(err, ClientResponseError):
-                            if err.status in [408, 409, 429]:   # pylint: disable=no-member
+                            if err.status in [408, 409, 429]:  # pylint: disable=no-member
                                 # 408 (timeout) or 409 (conflict) and 429 (too many requests)
                                 # Retry after 1 sec
                                 await asyncio.sleep(1)

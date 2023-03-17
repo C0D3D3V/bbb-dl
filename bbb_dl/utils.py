@@ -104,6 +104,14 @@ def formatSeconds(secs, delim=':', msec=False):
     return '%s.%03d' % (ret, time.milliseconds) if msec else ret
 
 
+KNOWN_VIDEO_AUDIO_EXTENSIONS = (
+    ['avi', 'flv', 'mkv', 'mov', 'mp4', 'webm', '3g2', '3gp', 'f4v', 'mk3d', 'divx', 'mpg', 'ogv', 'm4v']
+    + ['wmv', 'aiff', 'alac', 'flac', 'm4a', 'mka', 'mp3', 'ogg', 'opus', 'wav', 'aac', 'ape', 'asf', 'f4a', 'f4b']
+    + ['m4b', 'm4p', 'm4r', 'oga', 'ogx', 'spx', 'vorbis', 'wma', 'weba', 'jpg', 'png', 'webp']
+    + ['mhtml', 'srt', 'vtt', 'ass', 'lrc', 'f4f', 'f4m']
+)
+
+
 def xpath_text(node, xpath):
     n = node.find(xpath)
     if n is None:
@@ -401,6 +409,13 @@ class PathTools:
     @staticmethod
     def make_dirs(path_to_dir: str):
         Path(path_to_dir).mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def get_file_ext(filename: str) -> str:
+        file_splits = filename.rsplit('.', 1)
+        if len(file_splits) == 2:
+            return file_splits[-1].lower()
+        return None
 
     @staticmethod
     def get_user_data_directory():
