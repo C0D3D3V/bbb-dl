@@ -123,9 +123,10 @@ For example, if you have an **Nvidia** graphics card installed on a computer, yo
 
 ### Other downloader
 
-[bbb-video-download](https://github.com/tilmanmoser/bbb-video-download) 
+[bbb-video-download](https://github.com/tilmanmoser/bbb-video-download)
 - It uses a clever approach written in Node.js that can be easily integrated into a bbb server
 - You can use the `--backup` option to feed `bbb-video-download`.
+- A multi-threaded port in go-lang can be found here: [bbb-video-converter](https://github.com/cli-ish/bbb-video-converter)
 
 [bbb-download](https://github.com/fossasia/bbb-download)
 - Takes advantage of the fact that you can use the bbb-player to play the session data offline.
