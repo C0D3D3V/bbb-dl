@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'bbb-dl = bbb_dl.main:main',
             'bbb-dl-batch = bbb_dl.batch:main',
+            'bbb-dl-browser = bbb_dl.browser:main',
         ],
     },
     python_requires='>=3.7',

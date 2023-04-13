@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import traceback
-
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -17,31 +16,29 @@ from http.server import ThreadingHTTPServer
 from itertools import cycle
 from pathlib import Path
 from threading import Thread
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 from xml.etree import ElementTree as ET
-from xml.etree.ElementTree import ParseError, Element
+from xml.etree.ElementTree import Element, ParseError
 
-import aiohttp
 import aiofiles
-
+import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
+from colorama import just_fix_windows_console
 from playwright.async_api import async_playwright
 from playwright.async_api._generated import Page
-from colorama import just_fix_windows_console
 
 from bbb_dl.ffmpeg import FFMPEG
+from bbb_dl.utils import KNOWN_VIDEO_AUDIO_EXTENSIONS, Log
+from bbb_dl.utils import PathTools as PT
 from bbb_dl.utils import (
+    QuietRequestHandler,
+    Timer,
     _s,
     _x,
     append_get_idx,
     format_bytes,
     formatSeconds,
     get_free_port,
-    KNOWN_VIDEO_AUDIO_EXTENSIONS,
-    Log,
-    PathTools as PT,
-    QuietRequestHandler,
-    Timer,
     xpath_text,
 )
 from bbb_dl.version import __version__
@@ -855,19 +852,22 @@ class BBBDL:
                 Path(self.output_dir) / PT.to_valid_name(metadata.date_formatted + '_' + metadata.title + '.mp3')
             )
 
+    @classmethod
     def get_output_dir(
-        self,
+        cls,
         output_dir: str,
     ):
-        return self.check_directory(output_dir, os.getcwd(), 'output', '--output-dir')
+        return cls.check_directory(output_dir, os.getcwd(), 'output', '--output-dir')
 
+    @classmethod
     def get_working_dir(
-        self,
+        cls,
         working_dir: str,
     ):
-        return self.check_directory(working_dir, PT.get_project_data_directory(), 'temporary', '--working-dir')
+        return cls.check_directory(working_dir, PT.get_project_data_directory(), 'temporary', '--working-dir')
 
-    def check_directory(self, path: str, default_path: str, file_type: str, option_name: str):
+    @staticmethod
+    def check_directory(path: str, default_path: str, file_type: str, option_name: str):
         if path is None:
             path = default_path
         else:
@@ -1244,9 +1244,6 @@ class BBBDL:
 
 
 def get_parser():
-    """
-    Creates a new argument parser.
-    """
     parser = argparse.ArgumentParser(
         description=('Big Blue Button Downloader that downloads a BBB lesson as MP4 video')
     )
@@ -1431,8 +1428,7 @@ def get_parser():
 # --- called at the program invocation: -------------------------------------
 def main(args=None):
     just_fix_windows_console()
-    parser = get_parser()
-    args = parser.parse_args(args)
+    args = get_parser().parse_args(args)
 
     with Timer() as final_t:
         bbb_dl = BBBDL(
