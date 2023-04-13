@@ -8,40 +8,39 @@ import os
 import re
 import shutil
 import traceback
-
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import partial
 from http.server import ThreadingHTTPServer
+from io import StringIO
 from itertools import cycle
 from pathlib import Path
 from threading import Thread
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 from xml.etree import ElementTree as ET
-from xml.etree.ElementTree import ParseError, Element
+from xml.etree.ElementTree import Element, ParseError
 
-import aiohttp
 import aiofiles
-
+import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
+from colorama import just_fix_windows_console
 from playwright.async_api import async_playwright
 from playwright.async_api._generated import Page
-from colorama import just_fix_windows_console
 
 from bbb_dl.ffmpeg import FFMPEG
+from bbb_dl.utils import KNOWN_VIDEO_AUDIO_EXTENSIONS, BBBDLCookieJar, Log
+from bbb_dl.utils import PathTools as PT
 from bbb_dl.utils import (
+    QuietRequestHandler,
+    Timer,
     _s,
     _x,
     append_get_idx,
+    convert_to_aiohttp_cookie_jar,
     format_bytes,
     formatSeconds,
     get_free_port,
-    KNOWN_VIDEO_AUDIO_EXTENSIONS,
-    Log,
-    PathTools as PT,
-    QuietRequestHandler,
-    Timer,
     xpath_text,
 )
 from bbb_dl.version import __version__
@@ -162,6 +161,12 @@ class BBBDL:
 
         self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset, crf)
 
+        self.cookies_path = PT.make_path(self.working_dir, "cookies.txt")
+        self.cookies_text = None
+        if os.path.isfile(self.cookies_path):
+            with open(self.cookies_path, 'r', encoding='utf-8') as cookie_file:
+                self.cookies_text = cookie_file.read()
+
         # Check DL-URL
         m_obj = re.match(self.VALID_URL_RE, self.dl_url)
 
@@ -177,6 +182,13 @@ class BBBDL:
         self.presentation_base_url = self.video_website + '/presentation/' + self.video_id
         self.tmp_dir = self.get_tmp_dir(self.video_id)
         self.frames_dir = self.get_frames_dir()
+
+    def get_cookie_jar(self) -> aiohttp.CookieJar:
+        if self.cookies_text is not None:
+            cookie_jar = BBBDLCookieJar(StringIO(self.cookies_text))
+            cookie_jar.load(ignore_discard=True, ignore_expires=True)
+            return convert_to_aiohttp_cookie_jar(cookie_jar)
+        return None
 
     def run(self):
         if not self.backup:
@@ -855,19 +867,22 @@ class BBBDL:
                 Path(self.output_dir) / PT.to_valid_name(metadata.date_formatted + '_' + metadata.title + '.mp3')
             )
 
+    @classmethod
     def get_output_dir(
-        self,
+        cls,
         output_dir: str,
     ):
-        return self.check_directory(output_dir, os.getcwd(), 'output', '--output-dir')
+        return cls.check_directory(output_dir, os.getcwd(), 'output', '--output-dir')
 
+    @classmethod
     def get_working_dir(
-        self,
+        cls,
         working_dir: str,
     ):
-        return self.check_directory(working_dir, PT.get_project_data_directory(), 'temporary', '--working-dir')
+        return cls.check_directory(working_dir, PT.get_project_data_directory(), 'temporary', '--working-dir')
 
-    def check_directory(self, path: str, default_path: str, file_type: str, option_name: str):
+    @staticmethod
+    def check_directory(path: str, default_path: str, file_type: str, option_name: str):
         if path is None:
             path = default_path
         else:
@@ -984,7 +999,7 @@ class BBBDL:
             headers = self.headers.copy()
             finished_successfully = False
             async with semaphore, aiohttp.ClientSession(
-                conn_timeout=conn_timeout, read_timeout=read_timeout
+                cookie_jar=self.get_cookie_jar(), conn_timeout=conn_timeout, read_timeout=read_timeout
             ) as session:
                 while tries_num < self.max_dl_retries:
                     try:
@@ -1244,9 +1259,6 @@ class BBBDL:
 
 
 def get_parser():
-    """
-    Creates a new argument parser.
-    """
     parser = argparse.ArgumentParser(
         description=('Big Blue Button Downloader that downloads a BBB lesson as MP4 video')
     )
@@ -1431,8 +1443,7 @@ def get_parser():
 # --- called at the program invocation: -------------------------------------
 def main(args=None):
     just_fix_windows_console()
-    parser = get_parser()
-    args = parser.parse_args(args)
+    args = get_parser().parse_args(args)
 
     with Timer() as final_t:
         bbb_dl = BBBDL(
