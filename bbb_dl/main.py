@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import Enum
 from functools import partial
 from http.server import ThreadingHTTPServer
+from io import StringIO
 from itertools import cycle
 from pathlib import Path
 from threading import Thread
@@ -28,7 +29,7 @@ from playwright.async_api import async_playwright
 from playwright.async_api._generated import Page
 
 from bbb_dl.ffmpeg import FFMPEG
-from bbb_dl.utils import KNOWN_VIDEO_AUDIO_EXTENSIONS, Log
+from bbb_dl.utils import KNOWN_VIDEO_AUDIO_EXTENSIONS, BBBDLCookieJar, Log
 from bbb_dl.utils import PathTools as PT
 from bbb_dl.utils import (
     QuietRequestHandler,
@@ -36,6 +37,7 @@ from bbb_dl.utils import (
     _s,
     _x,
     append_get_idx,
+    convert_to_aiohttp_cookie_jar,
     format_bytes,
     formatSeconds,
     get_free_port,
@@ -159,6 +161,12 @@ class BBBDL:
 
         self.ffmpeg = FFMPEG(verbose, ffmpeg_location, encoder, audiocodec, preset, crf)
 
+        self.cookies_path = PT.make_path(self.working_dir, "cookies.txt")
+        self.cookies_text = None
+        if os.path.isfile(self.cookies_path):
+            with open(self.cookies_path, 'r', encoding='utf-8') as cookie_file:
+                self.cookies_text = cookie_file.read()
+
         # Check DL-URL
         m_obj = re.match(self.VALID_URL_RE, self.dl_url)
 
@@ -174,6 +182,13 @@ class BBBDL:
         self.presentation_base_url = self.video_website + '/presentation/' + self.video_id
         self.tmp_dir = self.get_tmp_dir(self.video_id)
         self.frames_dir = self.get_frames_dir()
+
+    def get_cookie_jar(self) -> aiohttp.CookieJar:
+        if self.cookies_text is not None:
+            cookie_jar = BBBDLCookieJar(StringIO(self.cookies_text))
+            cookie_jar.load(ignore_discard=True, ignore_expires=True)
+            return convert_to_aiohttp_cookie_jar(cookie_jar)
+        return None
 
     def run(self):
         if not self.backup:
@@ -984,7 +999,7 @@ class BBBDL:
             headers = self.headers.copy()
             finished_successfully = False
             async with semaphore, aiohttp.ClientSession(
-                conn_timeout=conn_timeout, read_timeout=read_timeout
+                cookie_jar=self.get_cookie_jar(), conn_timeout=conn_timeout, read_timeout=read_timeout
             ) as session:
                 while tries_num < self.max_dl_retries:
                     try:
