@@ -421,7 +421,7 @@ class BBBDLCookieJar(http.cookiejar.MozillaCookieJar):
                             'Cookies file must be Netscape formatted, not JSON. See  '
                             'https://github.com/C0D3D3V/Moodle-DL/wiki/Use-cookies-when-downloading'
                         )
-                    logging.info('WARNING: Skipping cookie file entry due to %s: %r', cookie_err, line)
+                    Log.info(f'WARNING: Skipping cookie file entry due to {cookie_err}: {line!r}')
                     continue
         cf.seek(0)
         self._really_load(cf, filename, ignore_discard, ignore_expires)

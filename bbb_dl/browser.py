@@ -38,8 +38,9 @@ class BrowserWindow(QMainWindow):
         self.cookie_jar = BBBDLCookieJar(self.cookies_path)
         self.setWindowTitle('BBB Browser')
 
-        web_engine_context_log = QLoggingCategory("qt.webenginecontext")
-        web_engine_context_log.setFilterRules("*.info=false")
+        if args.verbose is None or not args.verbose:
+            web_engine_context_log = QLoggingCategory("qt.webenginecontext")
+            web_engine_context_log.setFilterRules("*.info=false")
 
         self.toolBar = QToolBar()
         self.addToolBar(self.toolBar)
@@ -58,7 +59,8 @@ class BrowserWindow(QMainWindow):
 
         self.webEngineView = QWebEngineView()
 
-        self.profile = QWebEngineProfile("storage", self.webEngineView)
+        # We use the off-the-record mode to not use persistent storage
+        self.profile = QWebEngineProfile(self.webEngineView)
         self.cookie_store = self.profile.cookieStore()
         if os.path.isfile(self.cookies_path):
             self.cookie_jar.load(ignore_discard=True, ignore_expires=True)
@@ -71,7 +73,7 @@ class BrowserWindow(QMainWindow):
         self.webEngineView.setPage(webpage)
 
         self.setCentralWidget(self.webEngineView)
-        initialUrl = 'https://www.ecosia.org'
+        initialUrl = 'https://www.startpage.com/'
         self.addressLineEdit.setText(initialUrl)
         self.webEngineView.load(QUrl(initialUrl))
         self.webEngineView.page().titleChanged.connect(self.setWindowTitle)
@@ -82,27 +84,29 @@ class BrowserWindow(QMainWindow):
 
     def handle_cookie_added(self, qt_cookie: QNetworkCookie):
         # print("added {name} : {value}".format(name=qt_cookie.name(), value=qt_cookie.value()))
-        self.cookie_jar.set_cookie(
-            Cookie(
-                version=None,
-                name=qt_cookie.name().data().decode('utf-8'),
-                value=qt_cookie.value().data().decode('utf-8'),
-                port=None,
-                port_specified=False,
-                domain=qt_cookie.domain(),
-                domain_specified=True,
-                domain_initial_dot=qt_cookie.domain().startswith("."),  # should be always true
-                path=qt_cookie.path(),
-                path_specified=True,
-                secure=qt_cookie.isSecure(),
-                expires=qt_cookie.expirationDate().toSecsSinceEpoch(),
-                discard=False,
-                comment=None,
-                comment_url=None,
-                rest=None,
-                rfc2109=False,
-            )
+        exp = qt_cookie.expirationDate().toSecsSinceEpoch()
+        if exp <= 0:
+            exp = 2147483647
+        new_cookie = Cookie(
+            version=None,
+            name=qt_cookie.name().data().decode('utf-8'),
+            value=qt_cookie.value().data().decode('utf-8'),
+            port=None,
+            port_specified=False,
+            domain=qt_cookie.domain(),
+            domain_specified=True,
+            domain_initial_dot=qt_cookie.domain().startswith("."),  # should be always true
+            path=qt_cookie.path(),
+            path_specified=True,
+            secure=qt_cookie.isSecure(),
+            expires=exp,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest=None,
+            rfc2109=False,
         )
+        self.cookie_jar.set_cookie(new_cookie)
 
     @Slot()
     def load(self):
@@ -133,6 +137,12 @@ def get_parser():
         help='Optional output directory for all temporary directories/files',
     )
 
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true',
+        help=('Print more verbose debug information'),
+    )
     return parser
 
 
