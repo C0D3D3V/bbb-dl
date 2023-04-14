@@ -1,5 +1,6 @@
 from os import path
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 # Get the version from bbb_dl/version.py without importing the package
 exec(compile(open('bbb_dl/version.py', encoding="utf-8").read(), 'bbb_dl/version.py', 'exec'))
@@ -33,9 +34,10 @@ setup(
     install_requires=[
         'aiofiles>=22.1.0',
         'aiohttp>=3.8.3',
-        'playwright>=1.29.0',
-        'python-ffmpeg>=1.0.16',
         'colorama>=0.4.6',
+        'playwright>=1.29.0',
+        'PySide6>=6.5.0',
+        'python-ffmpeg>=1.0.16',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
