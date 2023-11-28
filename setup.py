@@ -27,7 +27,6 @@ setup(
         'console_scripts': [
             'bbb-dl = bbb_dl.main:main',
             'bbb-dl-batch = bbb_dl.batch:main',
-            'bbb-dl-browser = bbb_dl.browser:main',
         ],
     },
     python_requires='>=3.7',
@@ -36,7 +35,6 @@ setup(
         'aiohttp>=3.8.3',
         'colorama>=0.4.6',
         'playwright>=1.29.0',
-        'PySide6>=6.5.0',
         'python-ffmpeg>=1.0.16',
     ],
     classifiers=[

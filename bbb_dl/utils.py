@@ -19,11 +19,6 @@ from pathlib import Path
 
 from aiohttp.cookiejar import CookieJar
 
-# pylint: disable = no-name-in-module
-from PySide6.QtCore import QDateTime
-from PySide6.QtNetwork import QNetworkCookie
-from PySide6.QtWebEngineCore import QWebEngineCookieStore
-
 
 class QuietRequestHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
@@ -244,29 +239,6 @@ def is_path_like(f):
 
 def str_or_none(v, default=None):
     return default if v is None else str(v)
-
-
-def load_mozilla_cookies_into_qt_cookie_store(
-    cookie_jar: http.cookiejar.MozillaCookieJar, qt_cookie_store: QWebEngineCookieStore
-):
-    """
-    Load all cookies from a http.cookiejar.MozillaCookieJar into a PySide6.QtWebEngineCore.QWebEngineCookieStore
-    """
-    # pylint: disable=protected-access
-    for cookie_domain, domain_cookies in cookie_jar._cookies.items():
-        for cookie_path, path_cookies in domain_cookies.items():
-            for cookie_name, cookie in path_cookies.items():
-                # cookie_name is cookie.name; cookie_path is cookie.path; cookie_domain is cookie.domain
-                qt_cookie = QNetworkCookie()
-                qt_cookie.setName(cookie.name.encode('utf-8'))
-                qt_cookie.setValue(cookie.value.encode('utf-8'))
-                qt_cookie.setDomain(cookie.domain)
-                qt_cookie.setPath(cookie.path)
-                qt_cookie.setSecure(cookie.secure)
-                exp = QDateTime()
-                exp.setSecsSinceEpoch(cookie.expires)
-                qt_cookie.setExpirationDate(exp)
-                qt_cookie_store.setCookie(qt_cookie)
 
 
 def convert_to_aiohttp_cookie_jar(mozilla_cookie_jar: http.cookiejar.MozillaCookieJar):
