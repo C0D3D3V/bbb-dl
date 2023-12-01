@@ -815,7 +815,7 @@ class BBBDL:
             zoom_y = float(zoom_value_split[1])
             zoom_width = float(zoom_value_split[2])
             zoom_height = float(zoom_value_split[3])
-            if zoom_in < recording_duration:
+            if zoom_in < recording_duration and zoom_width > 0 and zoom_height > 0:
                 zoom_action = Action(
                     action_type=ActionType.set_view_box,
                     value=zoom_value,
