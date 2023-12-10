@@ -178,6 +178,7 @@ class FFMPEG:
                 framerate='24',
                 r='24',
                 pix_fmt='yuv420p',
+                # g='1',  # activate intra frame codec
                 strict='experimental',
                 crf=self.crf,
                 preset=self.preset,
@@ -208,6 +209,10 @@ class FFMPEG:
                 strict='experimental',
                 crf=self.crf,
                 preset=self.preset,
+                framerate='24',
+                r='24',
+                pix_fmt='yuv420p',
+                # g='1',  # activate intra frame codec
             )
         )
 

@@ -1184,35 +1184,35 @@ class BBBDL:
             for idx, event in enumerate(deskshare_events):
                 if idx == 0 and event.start_timestamp > 0:
                     # Adding beginning
-                    # duration = math.floor(10 * (event.start_timestamp) + 0.5) / 10
+                    duration = math.floor(10 * (event.start_timestamp) + 0.5) / 10
                     concat_file.write("file 'slideshow.mp4'\n")
                     concat_file.write("inpoint 0.0\n")
-                    concat_file.write(f"outpoint {event.start_timestamp}\n")
-                    # concat_file.write(f"duration {duration}\n")
+                    concat_file.write(f"outpoint {formatSeconds(event.start_timestamp, msec=True)}\n")
+                    concat_file.write(f"duration {formatSeconds(duration, msec=True)}\n")
                 elif idx > 0:
                     # Adding part between deskshare
-                    # duration = (
-                    #     math.floor(10 * (event.start_timestamp - deskshare_events[idx - 1].stop_timestamp) + 0.5) / 10
-                    # )
+                    duration = (
+                        math.floor(10 * (event.start_timestamp - deskshare_events[idx - 1].stop_timestamp) + 0.5) / 10
+                    )
                     concat_file.write("file 'slideshow.mp4'\n")
-                    concat_file.write(f"inpoint {deskshare_events[idx - 1].stop_timestamp}\n")
-                    concat_file.write(f"outpoint {event.start_timestamp}\n")
-                    # concat_file.write(f"duration {duration}\n")
+                    concat_file.write(f"inpoint {formatSeconds(deskshare_events[idx - 1].stop_timestamp, msec=True)}\n")
+                    concat_file.write(f"outpoint {formatSeconds(event.start_timestamp, msec=True)}\n")
+                    concat_file.write(f"duration {formatSeconds(duration, msec=True)}\n")
 
                 # Adding deskshare
-                # duration = math.floor(10 * (event.stop_timestamp - event.start_timestamp) + 0.5) / 10
+                duration = math.floor(10 * (event.stop_timestamp - event.start_timestamp) + 0.5) / 10
                 concat_file.write("file 'deskshare.mp4'\n")
-                concat_file.write(f"inpoint {event.start_timestamp}\n")
-                concat_file.write(f"outpoint {event.stop_timestamp}\n")
-                # concat_file.write(f"duration {duration}\n")
+                concat_file.write(f"inpoint {formatSeconds(event.start_timestamp, msec=True)}\n")
+                concat_file.write(f"outpoint {formatSeconds(event.stop_timestamp, msec=True)}\n")
+                concat_file.write(f"duration {formatSeconds(duration, msec=True)}\n")
 
                 if idx == (len(deskshare_events) - 1) and event.stop_timestamp < metadata.duration:
                     # Adding finish
-                    # duration = math.floor(10 * (metadata.duration - event.stop_timestamp) + 0.5) / 10
+                    duration = math.floor(10 * (metadata.duration - event.stop_timestamp) + 0.5) / 10
                     concat_file.write("file 'slideshow.mp4'\n")
-                    concat_file.write(f"inpoint {event.stop_timestamp}\n")
-                    concat_file.write(f"outpoint {metadata.duration}\n")
-                    # concat_file.write(f"duration {duration}\n")
+                    concat_file.write(f"inpoint {formatSeconds(event.stop_timestamp, msec=True)}\n")
+                    concat_file.write(f"outpoint {formatSeconds(metadata.duration, msec=True)}\n")
+                    concat_file.write(f"duration {formatSeconds(duration, msec=True)}\n")
 
         with Timer() as t:
             asyncio.run(self.ffmpeg.add_deskshare_to_slideshow(deskshare_txt_path, presentation_path))
@@ -1232,7 +1232,7 @@ class BBBDL:
             for idx in range(len(timestamps) - 1):
                 duration = math.floor(10 * (timestamps[idx + 1] - timestamps[idx]) + 0.5) / 10
                 concat_file.write(f"file '{frames[timestamps[idx]].capture_filename}'\n")
-                concat_file.write(f"duration {duration}\n")
+                concat_file.write(f"duration {formatSeconds(duration, msec=True)}\n")
 
             # We use the second to last frame again, because the last frame is always empty.
             # concat_file.write(f"file {frames[timestamps[-2]].capture_filename}\n")
