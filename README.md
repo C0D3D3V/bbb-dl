@@ -22,6 +22,19 @@ If something does not work, feel free to [contact me](https://github.com/C0D3D3V
 
 If you ever need to update `bbb-dl` run: `pip install -U bbb-dl`
 
+#### Alternatively use an virtual enviroment
+
+1. Install [Python](https://www.python.org/) >=3.7 and [git](https://git-scm.com/downloads)
+2. Install  `virtualenv`: `pip install virtualenv`
+3. Create a directory where you wish to install ebsco-dl. Open a terminal in the desired directory
+4. Clone this repository into that folder: `git clone https://github.com/C0D3D3V/bbb-dl.git .`
+5. Run `virtualenv venv` to create the virtual environment (on Windows use `venv\Scripts\activate`)
+6. Run `source venv/bin/activate` to activate the virtual environment (on Windows use `venv\Scripts\activate`)
+7. Install `bbb-dl`: `pip install .`
+8. Install [ffmpeg](https://github.com/C0D3D3V/Moodle-Downloader-2/wiki/Installing-ffmpeg)
+9. Run `playwright install chromium`
+10. Run `bbb-dl --help` to see all options
+
 ### Usage
 
 **Temporary files are default stored in the application data folder** 

@@ -5,3 +5,5 @@ bbb_dl.egg-info
 dist
 TODO.md
 /.vscode/launch.json
+/.venv
+/build
