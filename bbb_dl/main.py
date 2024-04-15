@@ -231,9 +231,7 @@ class BBBDL:
         deskshare_rel_path = (
             'deskshare/deskshare.webm'
             if dl_results[dsk_webm_idx]
-            else 'deskshare/deskshare.mp4'
-            if dl_results[dsk_mp4_idx]
-            else None
+            else 'deskshare/deskshare.mp4' if dl_results[dsk_mp4_idx] else None
         )
         deskshare_path = PT.get_in_dir(self.tmp_dir, deskshare_rel_path) if deskshare_rel_path is not None else None
 
@@ -493,8 +491,11 @@ class BBBDL:
             if partition_already_done:
                 status_dict['done'] += total_frames_in_partition
                 print()
-                Log.info(f'Partition already finished: {formatSeconds(partition[0])} to {formatSeconds(partition[1])}')
                 status_dict['done_partitions'] += 1
+                Log.info(
+                    f'{status_dict["done_partitions"]}/{status_dict["total_partitions"]}'
+                    + f' Partition already finished: {formatSeconds(partition[0])} to {formatSeconds(partition[1])}'
+                )
                 return
 
             browser = await p.chromium.launch()
@@ -573,8 +574,11 @@ class BBBDL:
 
             await browser.close()
             print()
-            Log.info(f'Partition finished: {formatSeconds(partition[0])} to {formatSeconds(partition[1])}')
             status_dict['done_partitions'] += 1
+            Log.info(
+                f'{status_dict["done_partitions"]}/{status_dict["total_partitions"]}'
+                + f' Partition finished: {formatSeconds(partition[0])} to {formatSeconds(partition[1])}'
+            )
 
     async def show_image(self, page: Page, action: Action):
         await page.evaluate(
