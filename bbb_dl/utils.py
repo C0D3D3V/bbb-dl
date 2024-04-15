@@ -489,6 +489,7 @@ class PathTools:
             return None
 
         name = html.unescape(name)
+        name = unicodedata.normalize('NFKC', name)
 
         name = name.replace('\n', ' ')
         name = name.replace('\r', ' ')
