@@ -1,16 +1,17 @@
 import json
 import os
 import subprocess
-
 from dataclasses import dataclass
+from itertools import cycle
 from subprocess import CalledProcessError
 from typing import List
-from itertools import cycle
 
-from ffmpeg.asyncio import FFmpeg
 from ffmpeg import Progress
+from ffmpeg.asyncio import FFmpeg
 
-from bbb_dl.utils import PathTools as PT, Log, formatSeconds
+from bbb_dl.utils import Log
+from bbb_dl.utils import PathTools as PT
+from bbb_dl.utils import formatSeconds
 
 
 @dataclass
@@ -175,6 +176,10 @@ class FFMPEG:
             )
             .output(
                 output_path,
+                {
+                    'c:v': self.encoder,
+                    'c:a': self.audiocodec,
+                },
                 framerate='24',
                 r='24',
                 pix_fmt='yuv420p',
