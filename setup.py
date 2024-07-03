@@ -33,9 +33,11 @@ setup(
     install_requires=[
         'aiofiles>=22.1.0',
         'aiohttp>=3.8.3',
+        'certifi>=2020.4.5.2',
         'colorama>=0.4.6',
         'playwright>=1.29.0',
         'python-ffmpeg>=2.0.12',
+        'requests>=2.24.0',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

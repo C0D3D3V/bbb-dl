@@ -7,17 +7,21 @@ import http.cookiejar
 import http.server
 import io
 import itertools
-import logging
 import math
 import os
 import re
 import socket
+import ssl
 import sys
 import time
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 
+import requests
+import urllib3
 from aiohttp.cookiejar import CookieJar
+from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
 
 class QuietRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -239,6 +243,93 @@ def is_path_like(f):
 
 def str_or_none(v, default=None):
     return default if v is None else str(v)
+
+
+class SslHelper:
+    warned_about_certifi = False
+
+    @classmethod
+    def load_default_certs(cls, ssl_context: ssl.SSLContext):
+        cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
+
+        if not cert_loc or not os.path.exists(cert_loc):
+            if not cls.warned_about_certifi:
+                Log.warning(f"Certifi could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
+                cls.warned_about_certifi = True
+            ssl_context.load_default_certs()
+        else:
+            if not os.path.isdir(cert_loc):
+                ssl_context.load_verify_locations(cafile=cert_loc)
+            else:
+                ssl_context.load_verify_locations(capath=cert_loc)
+
+    @classmethod
+    @lru_cache(maxsize=16)
+    def get_ssl_context(
+        cls,
+        skip_cert_verify: bool,
+        allow_insecure_ssl: bool,
+        use_all_ciphers: bool,
+        force_tls_version: str,
+    ):
+        if not skip_cert_verify:
+            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            cls.load_default_certs(ssl_context)
+        else:
+            ssl_context = ssl._create_unverified_context()  # pylint: disable=protected-access
+
+        if allow_insecure_ssl:
+            # This allows connections to legacy insecure servers
+            # https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html#SECURE-RENEGOTIATION
+            # Be warned the insecure renegotiation allows an attack, see:
+            # https://nvd.nist.gov/vuln/detail/CVE-2009-3555
+            ssl_context.options |= 0x4  # set ssl.OP_LEGACY_SERVER_CONNECT bit
+        if use_all_ciphers:
+            ssl_context.set_ciphers('ALL')
+        if force_tls_version:
+            if hasattr(ssl.TLSVersion, force_tls_version):
+                version = getattr(ssl.TLSVersion, force_tls_version)
+                ssl_context.minimum_version = version
+                ssl_context.maximum_version = version
+            else:
+                Log.warning(
+                    'TLS Version is not forced, please use any of the following strings: '
+                    + ', '.join(v for v in dir(ssl.TLSVersion) if v.startswith(('TLS', 'SSL')))
+                )
+
+        return ssl_context
+
+    class CustomHttpAdapter(requests.adapters.HTTPAdapter):
+        '''
+        Transport adapter that allows us to use custom ssl_context.
+        See https://stackoverflow.com/a/71646353 for more details.
+        '''
+
+        def __init__(self, ssl_context=None, **kwargs):
+            self.ssl_context = ssl_context
+            super().__init__(**kwargs)
+
+        def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+            self.poolmanager = urllib3.poolmanager.PoolManager(
+                num_pools=connections, maxsize=maxsize, block=block, ssl_context=self.ssl_context, **pool_kwargs
+            )
+
+    @classmethod
+    def custom_requests_session(
+        cls,
+        skip_cert_verify: bool,
+        allow_insecure_ssl: bool,
+        use_all_ciphers: bool,
+        force_tls_version: str,
+    ):
+        """
+        Return a new requests session with custom SSL context
+        """
+        session = requests.Session()
+        ssl_context = cls.get_ssl_context(skip_cert_verify, allow_insecure_ssl, use_all_ciphers, force_tls_version)
+        session.mount('https://', cls.CustomHttpAdapter(ssl_context))
+        session.verify = not skip_cert_verify
+        return session
 
 
 def convert_to_aiohttp_cookie_jar(mozilla_cookie_jar: http.cookiejar.MozillaCookieJar):

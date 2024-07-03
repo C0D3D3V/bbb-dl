@@ -57,8 +57,9 @@ Example call:
 
 
 ```
-usage: bbb-dl [-h] [-ao] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-ncc] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF]
-              [-f FILENAME] [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
+usage: bbb-dl [-h] [-ao] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-scv] [-ais] [-uac]
+              [-ftv FORCE_TLS_VERSION] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF] [-f FILENAME]
+              [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -71,19 +72,29 @@ options:
   -ao, --audio-only     Extract only the audio from the presentation, do not generate video.
   -sw, --skip-webcam    Skip adding the webcam video as an overlay to the final video. This will reduce the time to generate the final video
   -swfd, --skip-webcam-freeze-detection
-                        Skip detecting if the webcam video is completely empty. It is assumed the webcam recording is not empty. This will reduce the time to generate the final video
+                        Skip detecting if the webcam video is completely empty. It is assumed the webcam recording is not empty. This will reduce
+                        the time to generate the final video
   -sa, --skip-annotations
                         Skip capturing the annotations of the professor. This will reduce the time to generate the final video
   -sc, --skip-cursor    Skip capturing the cursor of the professor. This will reduce the time to generate the final video
-  -sz, --skip-zoom      Skip zooming into the presentation. All presentation slides are rendered in full size, which may result in sharper output video. However, consequently also to smaller font.
-  -bk, --backup         Downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the video based on the saved files
+  -sz, --skip-zoom      Skip zooming into the presentation. All presentation slides are rendered in full size, which may result in sharper output
+                        video. However, consequently also to smaller font.
+  -bk, --backup         Downloads all the content from the server and then stops. After using this option, you can run bbb-dl again to create the
+                        video based on the saved files
   -kt, --keep-tmp-files
                         Keep the temporary files after finish. In case of an error bbb-dl will reuse the already generated files
   -v, --verbose         Print more verbose debug information
   --ffmpeg-location FFMPEG_LOCATION
-                        Optional path to the directory in that your installed ffmpeg executable is located (Use it if ffmpeg is not located in your system PATH)
-  -ncc, --no-check-certificate
+                        Optional path to the directory in that your installed ffmpeg executable is located (Use it if ffmpeg is not located in your
+                        system PATH)
+  -scv, --skip-cert-verify
                         Suppress HTTPS certificate validation
+  -ais, --allow-insecure-ssl
+                        Allow connections to unpatched servers. Use this option if your server uses a very old SSL version.
+  -uac, --use-all-ciphers
+                        Allow connections to servers that use insecure ciphers. Use this option if your server uses an insecure cipher.
+  -ftv FORCE_TLS_VERSION, --force-tls-version FORCE_TLS_VERSION
+                        Force the client to use a specify tls version. E.g: TLSv1_3
   --version             Print program version and exit
   --encoder ENCODER     Optional encoder to pass to ffmpeg (default libx264)
   --audiocodec AUDIOCODEC

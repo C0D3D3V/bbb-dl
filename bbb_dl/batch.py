@@ -1,18 +1,14 @@
 import argparse
 import os
 import subprocess
-
 from subprocess import CalledProcessError
 from typing import List
 
 from colorama import just_fix_windows_console
 
-from bbb_dl.utils import (
-    formatSeconds,
-    Log,
-    PathTools as PT,
-    Timer,
-)
+from bbb_dl.utils import Log
+from bbb_dl.utils import PathTools as PT
+from bbb_dl.utils import Timer, formatSeconds
 from bbb_dl.version import __version__
 
 
@@ -23,7 +19,10 @@ class BatchProcessor:
         bbb_dl_path: str,
         output_dir: str,
         verbose: bool,
-        no_check_certificate: bool,
+        skip_cert_verify: bool,
+        allow_insecure_ssl: bool,
+        use_all_ciphers: bool,
+        force_tls_version: str,
         encoder: str,
         audiocodec: str,
         audio_only: bool,
@@ -52,7 +51,10 @@ class BatchProcessor:
         self.add_bool_option(option_list, '--skip-zoom', skip_zoom)
         self.add_bool_option(option_list, '--backup', backup)
         self.add_bool_option(option_list, '--verbose', verbose)
-        self.add_bool_option(option_list, '--no-check-certificate', no_check_certificate)
+        self.add_bool_option(option_list, '--skip-cert-verify', skip_cert_verify)
+        self.add_bool_option(option_list, '--allow-insecure-ssl', allow_insecure_ssl)
+        self.add_bool_option(option_list, '--use-all-ciphers', use_all_ciphers)
+        self.add_value_option(option_list, '--force-tls-version', force_tls_version)
         self.add_bool_option(option_list, '--keep-tmp-files', keep_tmp_files)
         self.add_value_option(option_list, '--ffmpeg-location', ffmpeg_location)
         self.add_value_option(option_list, '--working-dir', working_dir)
@@ -257,10 +259,35 @@ def get_parser():
     )
 
     parser.add_argument(
-        '-ncc',
-        '--no-check-certificate',
+        '-scv',
+        '--skip-cert-verify',
         action='store_true',
         help=('Suppress HTTPS certificate validation'),
+    )
+    parser.add_argument(
+        '-ais',
+        '--allow-insecure-ssl',
+        dest='allow_insecure_ssl',
+        default=False,
+        action='store_true',
+        help='Allow connections to unpatched servers. Use this option if your server uses a very old SSL version.',
+    )
+    parser.add_argument(
+        '-uac',
+        '--use-all-ciphers',
+        dest='use_all_ciphers',
+        default=False,
+        action='store_true',
+        help=(
+            'Allow connections to servers that use insecure ciphers.'
+            + ' Use this option if your server uses an insecure cipher.'
+        ),
+    )
+    parser.add_argument(
+        '-ftv',
+        '--force-tls-version',
+        type=str,
+        help=('Force the client to use a specify tls version. E.g: TLSv1_3'),
     )
 
     parser.add_argument(
@@ -357,7 +384,10 @@ def main(args=None):
             args.bbb_dl_path,
             args.output_dir,
             args.verbose,
-            args.no_check_certificate,
+            args.skip_cert_verify,
+            args.allow_insecure_ssl,
+            args.use_all_ciphers,
+            args.force_tls_version,
             args.encoder,
             args.audiocodec,
             args.audio_only,

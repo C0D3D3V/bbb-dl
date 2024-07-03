@@ -33,6 +33,7 @@ from bbb_dl.utils import KNOWN_VIDEO_AUDIO_EXTENSIONS, BBBDLCookieJar, Log
 from bbb_dl.utils import PathTools as PT
 from bbb_dl.utils import (
     QuietRequestHandler,
+    SslHelper,
     Timer,
     _s,
     _x,
@@ -118,7 +119,10 @@ class BBBDL:
         filename: str,
         output_dir: str,
         verbose: bool,
-        no_check_certificate: bool,
+        skip_cert_verify: bool,
+        allow_insecure_ssl: bool,
+        use_all_ciphers: bool,
+        force_tls_version: str,
         encoder: str,
         audiocodec: str,
         skip_webcam: bool,
@@ -147,7 +151,10 @@ class BBBDL:
         self.backup = backup
         self.working_dir = self.get_working_dir(working_dir)
         self.verbose = verbose
-        self.no_check_certificate = no_check_certificate
+        self.skip_cert_verify = skip_cert_verify
+        self.allow_insecure_ssl = allow_insecure_ssl
+        self.use_all_ciphers = use_all_ciphers
+        self.force_tls_version = force_tls_version
         self.max_dl_retries = 10
         self.max_parallel_dl = 5
         self.max_parallel_chromes = int(max_parallel_chromes)
@@ -950,7 +957,13 @@ class BBBDL:
         try:
             headers = self.headers.copy()
             headers['Range'] = 'bytes=0-4'
-            resp = await session.request("GET", url, headers=headers)
+            ssl_context = SslHelper.get_ssl_context(
+                skip_cert_verify=self.skip_cert_verify,
+                allow_insecure_ssl=self.allow_insecure_ssl,
+                use_all_ciphers=self.use_all_ciphers,
+                force_tls_version=self.force_tls_version,
+            )
+            resp = await session.get(url, headers=headers, ssl=ssl_context)
             return resp.headers.get('Content-Range') is not None and resp.status == 206
         except Exception as err:
             if self.verbose:
@@ -962,9 +975,10 @@ class BBBDL:
         @param dl_jobs: List of rel_file_path
         @param is_essential: Applied to all jobs
         """
+
         semaphore = asyncio.Semaphore(self.max_parallel_dl)
         dl_results = await asyncio.gather(
-            *[self.download_from_bbb(dl_job, is_essential, semaphore) for dl_job in dl_jobs]
+            *[self.download_from_bbb(dl_job, semaphore) for dl_job in dl_jobs]
         )
         if is_essential:
             for idx, downloaded in enumerate(dl_results):
@@ -976,7 +990,6 @@ class BBBDL:
     async def download_from_bbb(
         self,
         rel_file_path: str,
-        is_essential: bool,
         semaphore: asyncio.Semaphore,
         conn_timeout: int = 10,
         read_timeout: int = 1800,
@@ -1011,10 +1024,13 @@ class BBBDL:
                             headers["Range"] = f"bytes={received}-"
                         elif not can_continue_on_fail and 'Range' in headers:
                             del headers['Range']
-                        ssl_param = False if self.no_check_certificate else None
-                        async with session.request(
-                            "GET", dl_url, headers=headers, raise_for_status=True, ssl=ssl_param
-                        ) as resp:
+                        ssl_context = SslHelper.get_ssl_context(
+                            skip_cert_verify=self.skip_cert_verify,
+                            allow_insecure_ssl=self.allow_insecure_ssl,
+                            use_all_ciphers=self.use_all_ciphers,
+                            force_tls_version=self.force_tls_version,
+                        )
+                        async with session.get(dl_url, headers=headers, raise_for_status=True, ssl=ssl_context) as resp:
                             # Download the file.
                             total = int(resp.headers.get("Content-Length", 0))
                             content_range = resp.headers.get("Content-Range", "")  # Example: bytes 200-1000/67589
@@ -1348,10 +1364,35 @@ def get_parser():
     )
 
     parser.add_argument(
-        '-ncc',
-        '--no-check-certificate',
+        '-scv',
+        '--skip-cert-verify',
         action='store_true',
         help=('Suppress HTTPS certificate validation'),
+    )
+    parser.add_argument(
+        '-ais',
+        '--allow-insecure-ssl',
+        dest='allow_insecure_ssl',
+        default=False,
+        action='store_true',
+        help='Allow connections to unpatched servers. Use this option if your server uses a very old SSL version.',
+    )
+    parser.add_argument(
+        '-uac',
+        '--use-all-ciphers',
+        dest='use_all_ciphers',
+        default=False,
+        action='store_true',
+        help=(
+            'Allow connections to servers that use insecure ciphers.'
+            + ' Use this option if your server uses an insecure cipher.'
+        ),
+    )
+    parser.add_argument(
+        '-ftv',
+        '--force-tls-version',
+        type=str,
+        help=('Force the client to use a specify tls version. E.g: TLSv1_3'),
     )
 
     parser.add_argument(
@@ -1455,7 +1496,10 @@ def main(args=None):
             args.filename,
             args.output_dir,
             args.verbose,
-            args.no_check_certificate,
+            args.skip_cert_verify,
+            args.allow_insecure_ssl,
+            args.use_all_ciphers,
+            args.force_tls_version,
             args.encoder,
             args.audiocodec,
             args.skip_webcam,
