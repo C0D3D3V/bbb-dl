@@ -278,6 +278,9 @@ class SslHelper:
         else:
             ssl_context = ssl._create_unverified_context()  # pylint: disable=protected-access
 
+        # Activate ALPN extension
+        ssl_context.set_alpn_protocols(['http/1.1'])
+
         if allow_insecure_ssl:
             # This allows connections to legacy insecure servers
             # https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html#SECURE-RENEGOTIATION
