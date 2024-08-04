@@ -16,7 +16,7 @@ If something does not work, feel free to [contact me](https://github.com/C0D3D3V
 1. Install [Python](https://www.python.org/) >=3.7
 2. Install [ffmpeg](https://github.com/C0D3D3V/Moodle-Downloader-2/wiki/Installing-ffmpeg)
 3. Run: `pip install --user bbb-dl`
-4. Run `playwright install chromium`
+4. Run `python -m playwright install chromium`
 
 5. Run `bbb-dl --help` to see all options
 
