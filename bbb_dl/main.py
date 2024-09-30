@@ -896,8 +896,6 @@ class BBBDL:
     def check_directory(path: str, default_path: str, file_type: str, option_name: str):
         if path is None:
             path = default_path
-        else:
-            path = PT.sanitize_path(path)
 
         path = PT.get_abs_path(path)
         try:
