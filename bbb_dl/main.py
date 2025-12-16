@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import hashlib
+import json
 import math
 import os
 import re
@@ -127,6 +128,7 @@ class BBBDL:
         audiocodec: str,
         skip_webcam: bool,
         skip_webcam_freeze_detection: bool,
+        webcam_position: str,
         skip_annotations: bool,
         skip_cursor: bool,
         skip_zoom: bool,
@@ -143,6 +145,7 @@ class BBBDL:
         # Rendering options
         self.skip_webcam_opt = skip_webcam
         self.skip_webcam_freeze_detection_opt = skip_webcam_freeze_detection
+        self.webcam_position = webcam_position
         self.skip_annotations_opt = skip_annotations
         self.skip_cursor_opt = skip_cursor
         self.skip_zoom_opt = skip_zoom
@@ -221,6 +224,7 @@ class BBBDL:
             'notes.html',
             'polls.json',
             'external_videos.json',
+            'tldraw.json',  # BBB 3.x tldraw whiteboard annotations
         ]
         cam_webm_idx = append_get_idx(dl_jobs, 'video/webcams.webm')
         cam_mp4_idx = append_get_idx(dl_jobs, 'video/webcams.mp4')
@@ -562,18 +566,21 @@ class BBBDL:
                             # Use this view box only if we want to zoom
                             await self.set_view_box(page, action)
                     elif action.action_type == ActionType.move_cursor:
-                        if current_view_box is None:
+                        if action.x == -1 and action.y == -1:
+                            await self.move_cursor(page, -1, -1)
+                        elif action.element_id == 'tldraw':
+                            # BBB 3.x tldraw mode: cursor coordinates are absolute pixel positions
+                            await self.move_cursor(page, action.x, action.y)
+                        elif current_view_box is None:
                             Log.warning('No ViewBox, cursor position unclear!')
                             await self.move_cursor(page, -1, -1)
-                        if current_view_box is not None:
-                            if action.x == -1 and action.y == -1:
-                                await self.move_cursor(page, -1, -1)
-                            else:
-                                await self.move_cursor(
-                                    page,
-                                    current_view_box.x + (action.x * current_view_box.width),
-                                    current_view_box.y + (action.y * current_view_box.height),
-                                )
+                        else:
+                            # Legacy mode: cursor coordinates are normalized (0-1 range)
+                            await self.move_cursor(
+                                page,
+                                current_view_box.x + (action.x * current_view_box.width),
+                                current_view_box.y + (action.y * current_view_box.height),
+                            )
 
                 if not os.path.isfile(frame.capture_path):
                     await page.screenshot(path=frame.capture_path)
@@ -608,23 +615,55 @@ class BBBDL:
         )
 
     async def show_drawing(self, page: Page, action: Action):
-        await page.evaluate(
-            """([id, shape_id]) => {
-                document.querySelectorAll('[shape=' + shape_id + ']').forEach( element => {
-                    element.style.visibility = 'hidden'
-                })
-                document.querySelector('#' + id).style.visibility = 'visible'
-            }""",
-            [action.element_id, action.value],
-        )
+        if action.element_id.startswith('tldraw_'):
+            # BBB 3.x tldraw format: inject SVG element dynamically
+            await page.evaluate(
+                """([id, svgContent]) => {
+                    let existing = document.getElementById(id)
+                    if (existing) {
+                        existing.style.visibility = 'visible'
+                    } else {
+                        let svgfile = document.querySelector('#svgfile')
+                        if (svgfile) {
+                            let wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+                            wrapper.id = id
+                            wrapper.innerHTML = svgContent
+                            svgfile.appendChild(wrapper)
+                        }
+                    }
+                }""",
+                [action.element_id, action.value],
+            )
+        else:
+            # Legacy BBB 2.x format: elements exist in shapes.svg
+            await page.evaluate(
+                """([id, shape_id]) => {
+                    document.querySelectorAll('[shape=' + shape_id + ']').forEach( element => {
+                        element.style.visibility = 'hidden'
+                    })
+                    document.querySelector('#' + id).style.visibility = 'visible'
+                }""",
+                [action.element_id, action.value],
+            )
 
     async def hide_drawing(self, page: Page, action: Action):
-        await page.evaluate(
-            """(id) => {
-                document.querySelector('#' + id).style.display = 'none'
-            }""",
-            action.element_id,
-        )  # Maybe use visibility?
+        if action.element_id.startswith('tldraw_'):
+            # BBB 3.x tldraw format
+            await page.evaluate(
+                """(id) => {
+                    let el = document.getElementById(id)
+                    if (el) el.style.visibility = 'hidden'
+                }""",
+                action.element_id,
+            )
+        else:
+            # Legacy BBB 2.x format
+            await page.evaluate(
+                """(id) => {
+                    document.querySelector('#' + id).style.display = 'none'
+                }""",
+                action.element_id,
+            )
 
     async def set_view_box(self, page: Page, action: Action):
         # First try to use whole slideshow width
@@ -727,17 +766,25 @@ class BBBDL:
         partitions = self.parse_slide_partitions(loaded_shapes, metadata.duration)
         self.parse_images(loaded_shapes, frames, metadata.duration)
         if not self.skip_annotations_opt:
-            self.parse_drawings(loaded_shapes, frames, metadata.duration)
+            # Try to parse tldraw annotations first (BBB 3.x), fall back to legacy shapes.svg
+            tldraw_parsed = self.parse_tldraw_annotations(loaded_shapes, frames, metadata.duration)
+            if not tldraw_parsed:
+                self.parse_drawings(loaded_shapes, frames, metadata.duration)
 
         only_zooms = {}
+        is_tldraw = False
         loaded_zooms = self.load_xml('panzooms.xml', False)
         if loaded_zooms is not None:
+            # Check if this is tldraw format (BBB 3.x)
+            is_tldraw = loaded_zooms.get('tldraw') == 'true'
             self.parse_zooms(loaded_zooms, frames, only_zooms, metadata.duration)
 
         if not self.skip_cursor_opt:
             loaded_cursors = self.load_xml('cursor.xml', False)
             if loaded_cursors is not None:
-                self.parse_cursors(loaded_cursors, frames, metadata.duration)
+                # Check if cursor.xml is in tldraw format (overrides panzooms check)
+                cursor_is_tldraw = loaded_cursors.get('tldraw') == 'true'
+                self.parse_cursors(loaded_cursors, frames, metadata.duration, cursor_is_tldraw or is_tldraw)
 
         frames = dict(sorted(frames.items(), key=lambda item: item[0]))
         only_zooms = dict(sorted(only_zooms.items(), key=lambda item: item[0], reverse=True))
@@ -810,6 +857,218 @@ class BBBDL:
                         )
                     )
 
+    def parse_tldraw_annotations(
+        self, loaded_shapes: Element, frames: Dict[float, Frame], recording_duration: float
+    ) -> bool:
+        """
+        Parse tldraw.json annotations (BBB 3.x format).
+        Returns True if tldraw annotations were found and parsed, False otherwise.
+        """
+        tldraw_path = PT.get_in_dir(self.tmp_dir, 'tldraw.json')
+        if not os.path.exists(tldraw_path):
+            return False
+
+        try:
+            with open(tldraw_path, 'r', encoding='utf-8') as f:
+                tldraw_data = json.load(f)
+        except (json.JSONDecodeError, IOError) as err:
+            if self.verbose:
+                Log.warning(f'Failed to parse tldraw.json: {err}')
+            return False
+
+        # Check if there's any actual annotation data
+        if not tldraw_data or len(tldraw_data) <= 1:  # Only bbb_version key
+            return False
+
+        # Get slide image info from shapes.svg to map tldraw pages to slides
+        slides = loaded_shapes.findall(_s("./svg:image[@class='slide']"))
+        slide_map = {}  # Maps slide index to (image_id, in_time, out_time)
+        for idx, image in enumerate(slides, 1):
+            image_id = image.get('id')
+            image_in = float(image.get('in'))
+            image_out = float(image.get('out'))
+            slide_map[idx] = (image_id, image_in, image_out)
+
+        has_annotations = False
+
+        # Process each slide's annotations from tldraw.json
+        # Format: {"bbb_version": "3.x", "2": {"shapes": [...], "timestamp": 0.9}, "3": {...}}
+        for key, slide_data in tldraw_data.items():
+            if key == 'bbb_version':
+                continue
+
+            try:
+                slide_idx = int(key)
+            except ValueError:
+                continue
+
+            if 'shapes' not in slide_data:
+                continue
+
+            shapes = slide_data.get('shapes', [])
+            if not shapes:
+                continue
+
+            has_annotations = True
+
+            # Group shapes by their unique shape ID to track updates
+            shape_versions = {}  # shape_id -> list of (timestamp, shape_data, undo)
+            for shape in shapes:
+                shape_timestamp = float(shape.get('timestamp', 0))
+                shape_undo = float(shape.get('undo', -1))
+                shape_data = shape.get('shape_data', {})
+                shape_id = shape_data.get('id', str(shape.get('id', '')))
+
+                if shape_id not in shape_versions:
+                    shape_versions[shape_id] = []
+                shape_versions[shape_id].append((shape_timestamp, shape_data, shape_undo))
+
+            # For each unique shape, create show/hide actions
+            for shape_id, versions in shape_versions.items():
+                # Sort by timestamp
+                versions.sort(key=lambda x: x[0])
+
+                # Use the last version's data for display
+                last_timestamp, last_shape_data, last_undo = versions[-1]
+
+                # Generate SVG element for this shape
+                svg_element = self._tldraw_shape_to_svg(last_shape_data)
+                if svg_element is None:
+                    continue
+
+                # Create unique element ID
+                element_id = f'tldraw_{shape_id.replace(":", "_")}'
+
+                # Get first appearance timestamp
+                first_timestamp = versions[0][0]
+
+                if first_timestamp < recording_duration:
+                    self.get_frame_by_timestamp(frames, first_timestamp).actions.append(
+                        Action(
+                            action_type=ActionType.show_drawing,
+                            element_id=element_id,
+                            value=svg_element,  # Store SVG data in value for tldraw
+                        )
+                    )
+
+                    # Handle undo/hide
+                    if last_undo != -1 and last_undo < recording_duration:
+                        self.get_frame_by_timestamp(frames, last_undo).actions.append(
+                            Action(
+                                action_type=ActionType.hide_drawing,
+                                element_id=element_id,
+                            )
+                        )
+
+        return has_annotations
+
+    def _tldraw_shape_to_svg(self, shape_data: dict) -> str:
+        """Convert a tldraw shape to SVG path/element string."""
+        if not shape_data:
+            return None
+
+        shape_type = shape_data.get('type')
+        props = shape_data.get('props', {})
+        x = shape_data.get('x', 0)
+        y = shape_data.get('y', 0)
+        color = props.get('color', 'black')
+
+        # Map tldraw colors to actual colors
+        color_map = {
+            'black': '#1d1d1d',
+            'grey': '#9398a0',
+            'light-violet': '#c7b5e1',
+            'violet': '#ae7fd1',
+            'blue': '#4465e9',
+            'light-blue': '#7bc2e0',
+            'yellow': '#e6c72b',
+            'orange': '#f0933c',
+            'green': '#36b24d',
+            'light-green': '#9cdc6f',
+            'light-red': '#f3a39e',
+            'red': '#e03131',
+        }
+        svg_color = color_map.get(color, color)
+
+        if shape_type == 'draw':
+            # Freehand drawing
+            segments = props.get('segments', [])
+            if not segments:
+                return None
+
+            path_data = []
+            for segment in segments:
+                points = segment.get('points', [])
+                if not points:
+                    continue
+
+                for i, point in enumerate(points):
+                    px = x + point.get('x', 0)
+                    py = y + point.get('y', 0)
+                    if i == 0:
+                        path_data.append(f'M {px} {py}')
+                    else:
+                        path_data.append(f'L {px} {py}')
+
+            if not path_data:
+                return None
+
+            return f'<path d="{" ".join(path_data)}" stroke="{svg_color}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+
+        elif shape_type == 'text':
+            text = props.get('text', '')
+            if not text:
+                return None
+            # Escape HTML entities
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            return f'<text x="{x}" y="{y}" fill="{svg_color}" font-size="24" font-family="sans-serif">{text}</text>'
+
+        elif shape_type == 'note':
+            text = props.get('text', '')
+            if not text:
+                return None
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # Sticky note style
+            return f'<g transform="translate({x},{y})"><rect width="200" height="200" fill="#fef3c7" stroke="#d97706"/><text x="10" y="30" fill="{svg_color}" font-size="16">{text}</text></g>'
+
+        elif shape_type == 'geo':
+            # Geometric shapes (rectangle, ellipse, etc.)
+            geo = props.get('geo', 'rectangle')
+            w = props.get('w', 100)
+            h = props.get('h', 100)
+            fill_style = props.get('fill', 'none')
+            fill_color = 'none' if fill_style == 'none' else svg_color
+
+            if geo == 'rectangle':
+                return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" stroke="{svg_color}" stroke-width="2" fill="{fill_color}"/>'
+            elif geo == 'ellipse':
+                cx = x + w / 2
+                cy = y + h / 2
+                rx = w / 2
+                ry = h / 2
+                return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" stroke="{svg_color}" stroke-width="2" fill="{fill_color}"/>'
+            elif geo in ['diamond', 'rhombus']:
+                cx = x + w / 2
+                cy = y + h / 2
+                points = f'{cx},{y} {x + w},{cy} {cx},{y + h} {x},{cy}'
+                return f'<polygon points="{points}" stroke="{svg_color}" stroke-width="2" fill="{fill_color}"/>'
+
+        elif shape_type == 'line' or shape_type == 'arrow':
+            # Line or arrow
+            start = props.get('start', {})
+            end = props.get('end', {})
+            x1 = x + start.get('x', 0)
+            y1 = y + start.get('y', 0)
+            x2 = x + end.get('x', 100)
+            y2 = y + end.get('y', 0)
+
+            if shape_type == 'arrow':
+                return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{svg_color}" stroke-width="2" marker-end="url(#arrowhead)"/>'
+            else:
+                return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{svg_color}" stroke-width="2"/>'
+
+        return None
+
     def parse_zooms(
         self,
         loaded_zooms: Element,
@@ -838,14 +1097,16 @@ class BBBDL:
                 self.get_frame_by_timestamp(frames, zoom_in).actions.append(zoom_action)
                 self.get_frame_by_timestamp(only_zooms, zoom_in).actions.append(zoom_action)
 
-    def parse_cursors(self, loaded_cursors: Element, frames: Dict[float, Frame], recording_duration: float):
+    def parse_cursors(
+        self, loaded_cursors: Element, frames: Dict[float, Frame], recording_duration: float, is_tldraw: bool
+    ):
         cursors = loaded_cursors.findall("./event[@timestamp]")
         for cursor in cursors:
             cursor_in = float(cursor.get('timestamp'))
             cursor_value_text = cursor.find('cursor').text.split(' ')
             cursor_x = float(cursor_value_text[0])
             cursor_y = float(cursor_value_text[1])
-            cursor_value = (float(cursor_value_text[0]), float(cursor_value_text[1]))
+            cursor_value = (cursor_x, cursor_y)
             if cursor_in < recording_duration:
                 self.get_frame_by_timestamp(frames, cursor_in).actions.append(
                     Action(
@@ -853,6 +1114,8 @@ class BBBDL:
                         x=cursor_x,
                         y=cursor_y,
                         value=cursor_value,
+                        # Store whether this is tldraw mode (absolute coords) or legacy mode (normalized 0-1)
+                        element_id='tldraw' if is_tldraw else 'legacy',
                     )
                 )
 
@@ -1159,6 +1422,7 @@ class BBBDL:
                         self.slideshow_width,
                         self.slideshow_height,
                         result_path,
+                        self.webcam_position,
                     )
                 )
 
@@ -1303,6 +1567,14 @@ def get_parser():
         action='store_true',
         help='Skip detecting if the webcam video is completely empty.'
         + ' It is assumed the webcam recording is not empty. This will reduce the time to generate the final video',
+    )
+    parser.add_argument(
+        '-wp',
+        '--webcam-position',
+        type=str,
+        default='lower-right',
+        choices=['upper-left', 'upper-right', 'lower-left', 'lower-right'],
+        help='Position of the webcam overlay on the video (default: lower-right)',
     )
     parser.add_argument(
         '-sa',
@@ -1502,6 +1774,7 @@ def main(args=None):
             args.audiocodec,
             args.skip_webcam,
             args.skip_webcam_freeze_detection,
+            args.webcam_position,
             args.skip_annotations,
             args.skip_cursor,
             args.skip_zoom,

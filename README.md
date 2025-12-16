@@ -10,7 +10,29 @@ The assembled video includes:
   - zooming
 - screen sharing
 
-If something does not work, feel free to [contact me](https://github.com/C0D3D3V/bbb-dl/issues). 
+If something does not work, feel free to [contact me](https://github.com/C0D3D3V/bbb-dl/issues).
+
+### Supported BBB Versions
+
+This tool supports both **BBB 2.x** and **BBB 3.x** recordings:
+
+| Feature | BBB 2.x | BBB 3.x |
+|---------|---------|---------|
+| Slides | ✅ | ✅ |
+| Audio/Webcam | ✅ | ✅ |
+| Screen sharing | ✅ | ✅ |
+| Cursor tracking | ✅ | ✅ |
+| Zoom/Pan | ✅ | ✅ |
+| Whiteboard annotations | ✅ (shapes.svg) | ✅ (tldraw.json) |
+
+**BBB 3.x** introduced the [tldraw](https://github.com/tldraw/tldraw) whiteboard library, which stores annotations in a different format. This tool automatically detects the BBB version and handles both formats appropriately.
+
+Supported tldraw annotation types (BBB 3.x):
+- Freehand drawings
+- Text annotations
+- Sticky notes
+- Geometric shapes (rectangle, ellipse, diamond)
+- Lines and arrows
 
 ### Setup
 1. Install [Python](https://www.python.org/) >=3.7
@@ -57,9 +79,10 @@ Example call:
 
 
 ```
-usage: bbb-dl [-h] [-ao] [-sw] [-swfd] [-sa] [-sc] [-sz] [-bk] [-kt] [-v] [--ffmpeg-location FFMPEG_LOCATION] [-scv] [-ais] [-uac]
-              [-ftv FORCE_TLS_VERSION] [--version] [--encoder ENCODER] [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF] [-f FILENAME]
-              [-od OUTPUT_DIR] [-wd WORKING_DIR] [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
+usage: bbb-dl [-h] [-ao] [-sw] [-swfd] [-wp {upper-left,upper-right,lower-left,lower-right}] [-sa] [-sc] [-sz] [-bk] [-kt] [-v]
+              [--ffmpeg-location FFMPEG_LOCATION] [-scv] [-ais] [-uac] [-ftv FORCE_TLS_VERSION] [--version] [--encoder ENCODER]
+              [--audiocodec AUDIOCODEC] [--preset PRESET] [--crf CRF] [-f FILENAME] [-od OUTPUT_DIR] [-wd WORKING_DIR]
+              [-mpc MAX_PARALLEL_CHROMES] [-fw FORCE_WIDTH] [-fh FORCE_HEIGHT]
               URL
 
 Big Blue Button Downloader that downloads a BBB lesson as MP4 video
@@ -74,6 +97,8 @@ options:
   -swfd, --skip-webcam-freeze-detection
                         Skip detecting if the webcam video is completely empty. It is assumed the webcam recording is not empty. This will reduce
                         the time to generate the final video
+  -wp {upper-left,upper-right,lower-left,lower-right}, --webcam-position {upper-left,upper-right,lower-left,lower-right}
+                        Position of the webcam overlay on the video (default: lower-right)
   -sa, --skip-annotations
                         Skip capturing the annotations of the professor. This will reduce the time to generate the final video
   -sc, --skip-cursor    Skip capturing the cursor of the professor. This will reduce the time to generate the final video
