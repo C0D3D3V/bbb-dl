@@ -264,6 +264,16 @@ class FFMPEG:
 
         return webcam_width, webcam_height
 
+    def get_overlay_position(self, position: str) -> str:
+        """Convert position name to FFmpeg overlay coordinates."""
+        positions = {
+            'upper-left': '0:0',
+            'upper-right': 'W-w:0',
+            'lower-left': '0:H-h',
+            'lower-right': 'W-w:H-h',
+        }
+        return positions.get(position, 'W-w:H-h')
+
     async def add_webcam_to_slideshow(
         self,
         slideshow_path: str,
@@ -271,8 +281,10 @@ class FFMPEG:
         slideshow_width: int,
         slideshow_height: int,
         result_path: str,
+        webcam_position: str = 'lower-right',
     ):
         webcam_width, webcam_height = self.get_webcam_size(slideshow_width, slideshow_height)
+        overlay_pos = self.get_overlay_position(webcam_position)
 
         ffmpeg = (
             FFmpeg(self.ffmpeg_path)
@@ -288,7 +300,7 @@ class FFMPEG:
                 filter_complex=(
                     f'[0:v]scale={webcam_width}:{webcam_height},setpts=PTS-STARTPTS,'
                     + 'format=rgba,colorchannelmixer=aa=0.8'
-                    + '[ovrl];[1:v]fps=24,setpts=PTS-STARTPTS[bg];[bg][ovrl]overlay=W-w:H-h:shortest=1'
+                    + f'[ovrl];[1:v]fps=24,setpts=PTS-STARTPTS[bg];[bg][ovrl]overlay={overlay_pos}:shortest=1'
                 ),
                 strict='experimental',
                 crf=self.crf,
